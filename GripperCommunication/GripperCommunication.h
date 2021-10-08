@@ -8,6 +8,8 @@ public:
 	static constexpr byte homeByte = 101;
 	static constexpr byte getTargetStatusByte = 102;
 	static constexpr byte requestGaugeByte = 103;
+	static constexpr byte handshakeByte = 104;
+	static constexpr byte statusMessageByte = 105;
 
 	static constexpr byte messageReceivedByte = 200;
 	static constexpr byte messageFailedByte = 201;
@@ -31,6 +33,9 @@ public:
 		float radius;
 		float angle;
 		float palm;
+		// byte speedX;
+		// byte speedY;
+		// byte speedZ;
 
 	};
 	InputMessage inputMessage;
@@ -49,6 +54,9 @@ public:
 		long gaugeOneReading;
 		long gaugeTwoReading;
 		long gaugeThreeReading;
+		float xMotorPosition;
+		float yMotorPosition;
+		float zMotorPosition;
 	};
 	OutputMessage outputMessage;
 

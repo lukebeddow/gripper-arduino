@@ -86,9 +86,12 @@ bool GripperCommunication::readInput()
 
 	// extract the raw data
 	inputMessage.instructionByte = inputUnion.structure.instructionByte;
-	inputMessage.radius = inputUnion.structure.radius;
-	inputMessage.angle = inputUnion.structure.angle;
-	inputMessage.palm = inputUnion.structure.palm;
+
+	if (inputUnion.structure.instructionByte == sendCommandByte) {
+		inputMessage.radius = inputUnion.structure.radius;
+		inputMessage.angle = inputUnion.structure.angle;
+		inputMessage.palm = inputUnion.structure.palm;
+	}
 
 	// now reset all variables before a new message comes in
 	_inputSuccess == false;
@@ -107,13 +110,16 @@ void GripperCommunication::publishOutput()
 	outputUnion.structure.gaugeOneReading = outputMessage.gaugeOneReading;
 	outputUnion.structure.gaugeTwoReading = outputMessage.gaugeTwoReading;
 	outputUnion.structure.gaugeThreeReading = outputMessage.gaugeThreeReading;
+	outputUnion.structure.xMotorPosition = outputMessage.xMotorPosition;
+	outputUnion.structure.yMotorPosition = outputMessage.yMotorPosition;
+	outputUnion.structure.zMotorPosition = outputMessage.zMotorPosition;
 
 	// begin the message with the start marker
 	for (int i = 0; i < startEndSize; i++) {
 		Serial2.write(startMarkerByte);
 	}
 
-	// loop through sending the byte array
+	// loop through sending the entire byte array
 	for (byte x : outputUnion.byteArray) {
 		Serial2.write(x);
 	}

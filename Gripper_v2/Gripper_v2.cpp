@@ -53,6 +53,13 @@ void Gripper::setupMotors()
     motorX.setClockwise(m.clockwise.x);
     motorY.setClockwise(m.clockwise.y);
     motorZ.setClockwise(m.clockwise.z);
+
+    // calculate mm per step, assume motor parameters unchanged from here!
+    mmPerStep.x = (params.xy_lead / params.xy_gear_red)
+        / (m.stepsPerRev * m.microstep.x);
+    mmPerStep.y = (params.xy_lead / params.xy_gear_red)
+        / (m.stepsPerRev * m.microstep.y);
+    mmPerStep.z = params.z_lead / (m.stepsPerRev * m.microstep.z);
 }
 
 void Gripper::setPins()
@@ -224,7 +231,7 @@ void Gripper::prepareTarget(float radius, float angle, float palm)
 
     // calculate what step for target angle (y motor)
     float y_adjust = params.xy_diff * sin(angle * (3.141593 / 180.0));
-    float revs_y = revs_x + (y_adjust / params.xy_lead);
+    float revs_y = revs_x + (y_adjust / (params.xy_lead / params.xy_gear_red));
     control.stepTarget.y = revs_y * m.stepsPerRev * m.microstep.y;
 
     // calculate what step for target palm position (z motor)
@@ -408,6 +415,19 @@ void Gripper::motorEnable(bool is_enabled)
     }
 }
 
+void Gripper::setOutputMessagePosition()
+{
+    /* This function sets the output message with the current motor position */
+
+    iostream.outputMessage.xMotorPosition = params.xy_max
+        - motorX.getStep() * mmPerStep.x;
+
+    iostream.outputMessage.yMotorPosition = params.xy_max
+        - motorY.getStep() * mmPerStep.y;
+
+    iostream.outputMessage.zMotorPosition = motorZ.getStep() * mmPerStep.z;
+}
+
 void Gripper::checkInputs()
 {
     /* This function checks to see if the gripper is receiving inputs */
@@ -418,8 +438,9 @@ void Gripper::checkInputs()
 
     // check the ADC inputs for the strain gauges
     if (readGauges()) {
-        // if the gauges are ready, publish their data over bluetooth
+        // prepare and publish the output message
         iostream.outputMessage.isTargetReached = targetReached;
+        setOutputMessagePosition();
         iostream.publishOutput();
     }
 
