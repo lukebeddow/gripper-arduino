@@ -1,0 +1,17 @@
+StepperObj	KEYWORD1
+setClockwise	KEYWORD2
+setDirection	KEYWORD2
+setStepsPerRev	KEYWORD2
+setRPM	KEYWORD2
+setTarget	KEYWORD 2
+setHomingRPM	KEYWORD2
+rotate	KEYWORD2
+pulse	KEYWORD2
+rampedPulse	KEYWORD2
+targetPulse	KEYWORD2
+homePulse	KEYWORD2
+wipeHomingFlag	KEYWORD2
+publishSteps KEYWORD2
+addLimitSwitch	KEYWORD2
+setupWorkspace	KEYWORD2
+getStep	KEYWORD2

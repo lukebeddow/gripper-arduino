@@ -1,0 +1,9 @@
+Gripper	KEYWORD1
+readJoystick	KEYWORD2
+homingSequence	KEYWORD2
+home	KEYWORD2
+prepareTarget	KEYWORD2
+readGauges	KEYWORD2
+checkSerial	KEYWORD2
+runMotors	KEYWORD2
+checkInputs	KEYWORD2

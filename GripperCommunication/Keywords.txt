@@ -1,0 +1,3 @@
+GripperCommunication	KEYWORD1
+readInput	KEYWORD2
+publishOutput	KEYWORD2
