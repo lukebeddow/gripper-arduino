@@ -129,6 +129,14 @@ public:
     };
     Params params;
 
+    // operational parameters
+    struct {
+        float x;
+        float y;
+        float z;
+    } mmPerStep;
+
+
     // create motor objects
     StepperObj motorX{ xstep, xdir };
     StepperObj motorY{ ystep, ydir };
@@ -165,6 +173,7 @@ public:
     bool checkSerial();
     void runMotors(const int loopMillis);
     void motorEnable(bool is_enabled);
+    void setOutputMessagePosition();
     void checkInputs();
 
     /* ----- Private Functions ----- */
