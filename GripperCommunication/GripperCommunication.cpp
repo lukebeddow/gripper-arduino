@@ -110,9 +110,9 @@ void GripperCommunication::publishOutput()
 	outputUnion.structure.gaugeOneReading = outputMessage.gaugeOneReading;
 	outputUnion.structure.gaugeTwoReading = outputMessage.gaugeTwoReading;
 	outputUnion.structure.gaugeThreeReading = outputMessage.gaugeThreeReading;
-	outputUnion.structure.xMotorPosition = outputMessage.xMotorPosition;
-	outputUnion.structure.yMotorPosition = outputMessage.yMotorPosition;
-	outputUnion.structure.zMotorPosition = outputMessage.zMotorPosition;
+	outputUnion.structure.motorXPosition = outputMessage.motorXPosition;
+	outputUnion.structure.motorYPosition = outputMessage.motorYPosition;
+	outputUnion.structure.motorZPosition = outputMessage.motorZPosition;
 
 	// begin the message with the start marker
 	for (int i = 0; i < startEndSize; i++) {

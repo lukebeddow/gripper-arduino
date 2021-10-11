@@ -54,9 +54,9 @@ public:
 		long gaugeOneReading;
 		long gaugeTwoReading;
 		long gaugeThreeReading;
-		float xMotorPosition;
-		float yMotorPosition;
-		float zMotorPosition;
+		float motorXPosition;
+		float motorYPosition;
+		float motorZPosition;
 	};
 	OutputMessage outputMessage;
 

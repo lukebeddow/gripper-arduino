@@ -54,12 +54,15 @@ void Gripper::setupMotors()
     motorY.setClockwise(m.clockwise.y);
     motorZ.setClockwise(m.clockwise.z);
 
-    // calculate mm per step, assume motor parameters unchanged from here!
-    mmPerStep.x = (params.xy_lead / params.xy_gear_red)
-        / (m.stepsPerRev * m.microstep.x);
-    mmPerStep.y = (params.xy_lead / params.xy_gear_red)
-        / (m.stepsPerRev * m.microstep.y);
-    mmPerStep.z = params.z_lead / (m.stepsPerRev * m.microstep.z);
+    // calculate the mm per step parameters, this is never updated afterwards!
+    mmPerStep.x = params.mmPerRev.x / (m.stepsPerRev * m.microstep.x);
+    mmPerStep.y = params.mmPerRev.y / (m.stepsPerRev * m.microstep.y);
+    mmPerStep.z = params.mmPerRev.z / (m.stepsPerRev * m.microstep.z);
+
+    // adjust whether we gain +ve or -ve position from a step increase
+    mmPerStep.x *= params.direction.x;
+    mmPerStep.y *= params.direction.y;
+    mmPerStep.z *= params.direction.z;
 }
 
 void Gripper::setPins()
@@ -225,17 +228,17 @@ void Gripper::prepareTarget(float radius, float angle, float palm)
 {
     /* This function calculates the targets for a given input */
 
-    // calculate what step the target displacement corresponds to (x motor)
-    float revs_x = (params.xy_max - radius) / (params.xy_lead / params.xy_gear_red);
+    // convert the angle command into a target y radius
+    float y_mm = radius - params.xy_diff * sin(angle * (3.141593 / 180.0));
+
+    // calculate target revolutions for each motor
+    float revs_x = (params.home.x + radius * params.direction.x) / params.mmPerRev.x;
+    float revs_y = (params.home.y + y_mm * params.direction.y) / params.mmPerRev.y;
+    float revs_z = (params.home.z + palm * params.direction.z) / params.mmPerRev.z;
+    
+    // convert target revolutions to target steps
     control.stepTarget.x = revs_x * m.stepsPerRev * m.microstep.x;
-
-    // calculate what step for target angle (y motor)
-    float y_adjust = params.xy_diff * sin(angle * (3.141593 / 180.0));
-    float revs_y = revs_x + (y_adjust / (params.xy_lead / params.xy_gear_red));
     control.stepTarget.y = revs_y * m.stepsPerRev * m.microstep.y;
-
-    // calculate what step for target palm position (z motor)
-    float revs_z = (params.z_max - palm) / (params.z_lead);
     control.stepTarget.z = revs_z * m.stepsPerRev * m.microstep.z;
 
     // set motor speeds
@@ -255,6 +258,32 @@ void Gripper::prepareTarget(float radius, float angle, float palm)
     m.targetReached.z = false;
 
     operatingMode = 1;
+}
+
+void Gripper::readGauge(const int gauge_num)
+{
+    /* This function reads an individual gauge, reading takes 380us */
+
+    switch (gauge_num) {
+    case 1:
+        if (gauge1.is_ready()) {
+            iostream.outputMessage.gaugeOneReading = gauge1.read();
+            newReadGauge1 = true;
+        }
+        break;
+    case 2:
+        if (gauge2.is_ready()) {
+            iostream.outputMessage.gaugeTwoReading = gauge2.read();
+            newReadGauge2 = true;
+        }
+        break;
+    case 3:
+        if (gauge3.is_ready()) {
+            iostream.outputMessage.gaugeThreeReading = gauge3.read();
+            newReadGauge3 = true;
+        }
+        break;
+    }
 }
 
 bool Gripper::readGauges()
@@ -353,6 +382,9 @@ void Gripper::runMotors(const int loopMillis)
             motorY.rampedPulse();
             motorZ.rampedPulse();
         }
+
+        // default for joystick mode
+        targetReached = false;
     }
     // serial input target position mode
     else if (operatingMode == 1) {
@@ -366,6 +398,16 @@ void Gripper::runMotors(const int loopMillis)
             m.targetReached.y = motorY.targetPulse();
             m.targetReached.z = motorZ.targetPulse();
         }
+
+        // check if the target has been reached
+        if (m.targetReached.x and
+            m.targetReached.y and
+            m.targetReached.z) {
+            targetReached = true;
+        }
+        // else {
+        //     targetReached = false;
+        // }
     }
     // homing mode
     else if (operatingMode == 2) {
@@ -415,17 +457,16 @@ void Gripper::motorEnable(bool is_enabled)
     }
 }
 
-void Gripper::setOutputMessagePosition()
+void Gripper::setMotorPositions()
 {
-    /* This function sets the output message with the current motor position */
+    /* This function sets the motor positions for the output message */
 
-    iostream.outputMessage.xMotorPosition = params.xy_max
-        - motorX.getStep() * mmPerStep.x;
-
-    iostream.outputMessage.yMotorPosition = params.xy_max
-        - motorY.getStep() * mmPerStep.y;
-
-    iostream.outputMessage.zMotorPosition = motorZ.getStep() * mmPerStep.z;
+    iostream.outputMessage.motorXPosition = 
+        params.home.x + (mmPerStep.x * motorX.getStep());
+    iostream.outputMessage.motorYPosition = 
+        params.home.y + (mmPerStep.y * motorY.getStep());
+    iostream.outputMessage.motorZPosition = 
+        params.home.z + (mmPerStep.z * motorZ.getStep());
 }
 
 void Gripper::checkInputs()
@@ -435,21 +476,96 @@ void Gripper::checkInputs()
     // check the two input streams for commands
     readJoystick();
     checkSerial();
-
-    // check the ADC inputs for the strain gauges
     if (readGauges()) {
-        // prepare and publish the output message
-        iostream.outputMessage.isTargetReached = targetReached;
-        setOutputMessagePosition();
-        iostream.publishOutput();
+        publishOutput();
     }
 
-    // check if we have reached our target (n/a for joystick mode)
-    if (not targetReached and operatingMode != 0) {
-        if (m.targetReached.x and
-            m.targetReached.y and
-            m.targetReached.z) {
-            targetReached = true;
-        }
+    // // check the ADC inputs for the strain gauges
+    // if (readGauges()) {
+    //     // if the gauges are ready, publish their data over bluetooth
+    //     iostream.outputMessage.isTargetReached = targetReached;
+    //     iostream.publishOutput();
+    // }
+
+    // // check if we have reached our target (n/a for joystick mode)
+    // if (not targetReached and operatingMode != 0) {
+    //     if (m.targetReached.x and
+    //         m.targetReached.y and
+    //         m.targetReached.z) {
+    //         targetReached = true;
+    //     }
+    // }
+}
+
+void Gripper::publishOutput()
+{
+    /* This function checks if there is a new output to publish, and if
+    so it publishes it */
+
+    // check if all the gauges have new data to publish
+    if (newReadGauge1 and newReadGauge2 and newReadGauge3) {
+        // publish gauge data
+        iostream.outputMessage.isTargetReached = targetReached;
+        setMotorPositions();
+        iostream.publishOutput();
+        // gauge readings now out of date
+        newReadGauge1 = false;
+        newReadGauge2 = false;
+        newReadGauge3 = false;
     }
+}
+
+void Gripper::smoothRun(int cycleTime_ms)
+{
+    /* This function attempts to run the gripper smoothly, interspercing
+    I/O operations with running the motors */
+
+    /* Tasks:
+            1. readJoystick();
+            2. checkSerial();
+            3. readGauge(1);
+            4. readGauge(2);
+            5. readGauge(3);
+            6. publishOutput();
+    */
+
+    unsigned long startTime_us = micros();
+
+    constexpr int numTasks = 6;
+    constexpr int minTaskTime_ms = 2;       // milliseconds
+    constexpr int minRunPadding_ms = 1;     // milliseconds
+
+    // enforce a minimum cycle time
+    if (cycleTime_ms < minTaskTime_ms * numTasks + minRunPadding_ms) {
+        cycleTime_ms = minTaskTime_ms * numTasks + minRunPadding_ms;
+    }
+
+    // calculate time for regular tasks
+    int taskTime = (cycleTime_ms - minRunPadding_ms) / numTasks;
+
+    /* execute tasks */
+    readJoystick();
+    runMotors(taskTime);
+
+    checkSerial();
+    runMotors(taskTime);
+
+    readGauge(1);
+    runMotors(taskTime);
+
+    readGauge(2);
+    runMotors(taskTime);
+
+    readGauge(3);
+    runMotors(taskTime);
+
+    publishOutput();
+    runMotors(taskTime);
+
+    // finally, we want to run the motors until the cycle time is up
+    unsigned long endTime_us = micros();
+    unsigned long elapsedTime_ms = (endTime_us - startTime_us) / 1000;
+    unsigned int remainingTime_ms = cycleTime_ms - elapsedTime_ms;
+
+    runMotors(remainingTime_ms);
 }
