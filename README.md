@@ -15,7 +15,7 @@ void setup() {
   // non-interruptible homing sequence, required to calibrate motors
   mygripper.homingSequence();
   
-  // setup serial connection, in this case bluetooth on serial2
+  // setup serial connection, Serial2 is hardcoded in GripperCommunication as a global
   Serial2.begin(115200);
 }
 
