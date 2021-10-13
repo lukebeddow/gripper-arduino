@@ -16,6 +16,9 @@ GripperCommunication::GripperCommunication()
 	outputMessage.gaugeOneReading = 0;
 	outputMessage.gaugeTwoReading = 0;
 	outputMessage.gaugeThreeReading = 0;
+	outputMessage.motorXPosition = -1;
+	outputMessage.motorYPosition = -1;
+	outputMessage.motorZPosition = -1;
 }
 
 bool GripperCommunication::readInput()
