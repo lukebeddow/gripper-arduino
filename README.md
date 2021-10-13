@@ -4,7 +4,7 @@ Arduino libraries I have written to run the gripper.
 
 Gripper_v2 contains the main gripper class. GripperCommunication is a class to handle sending serial messages back and forth. StepperObj is a class to control a stepper motor, including safety controls.
 
-The arudino pins for I/0 are defined in Gripper_v2/pin_definitions.h. The Gripper_v2.h class also requires installing the HX711_Arudino_Library: https://www.arduino.cc/reference/en/libraries/hx711-arduino-library/
+The arudino pins for I/O are defined in Gripper_v2/pin_definitions.h. The Gripper_v2.h class also requires installing the HX711_Arudino_Library: https://www.arduino.cc/reference/en/libraries/hx711-arduino-library/
 
 To use the gripper class, upload the following sketch to the arudino:
 
