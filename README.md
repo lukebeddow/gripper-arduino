@@ -44,4 +44,13 @@ Rather than use smoothRun, the gripper can also be run using:
   // run the motors for a cycle of 20ms
   mygripper.runMotors(20);
 ```
+Finally, the gripper can be put into power saving mode, or disabled - which means the motors cannot move but other functions (I/O) continues:
 
+```c++
+
+  // motors are switched off when not moving
+  mygripper.powerSaving = true;
+  
+  // motors are prevented from moving
+  mygripper.disabled = true
+```
