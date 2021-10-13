@@ -21,11 +21,13 @@ void setup() {
   
   // setup serial connection, Serial2 is hardcoded in GripperCommunication as a global
   Serial2.begin(115200);
+  
 }
 
 void loop() {
 
   // run smoothed cycles (minimise noise) for 20ms each
   mygripper.smoothRun(20);
+  
 }
 ```
