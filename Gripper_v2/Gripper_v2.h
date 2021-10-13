@@ -119,13 +119,16 @@ public:
 
     // gripper physical properties
     struct Params {
-        /* This structure contains physical constants */
-        static constexpr float xy_lead = 4;        // lead in mm for x and y screws
-        static constexpr float z_lead = 4.8768;    // lead in mm for z screw
-        static constexpr float xy_gear_red = 1.5;  // gear reduction to xy screws
-        static constexpr float xy_max = 134;       // home displacement value in mm
-        static constexpr float xy_diff = 35;       // distance between screws in mm
-        static constexpr float z_max = 160;        // home displacement value in mm
+        /* This structure contains physical constants, all in mm */
+
+        // static constexpr float xy_lead = 4;        // lead in mm for x and y screws
+        // static constexpr float z_lead = 4.8768;    // lead in mm for z screw
+        // static constexpr float xy_gear_red = 1.5;  // gear reduction to xy screws
+        // static constexpr float xy_max = 134;       // home displacement value in mm
+        // static constexpr float xy_diff = 35;       // distance between screws in mm
+        // static constexpr float z_max = 160;        // home displacement value in mm
+
+        static constexpr float screwDistance_xy = 35;
 
         static struct Home {
             // home position in mm
@@ -164,14 +167,6 @@ public:
     };
     Params params;
 
-    // operational parameters
-    struct {
-        float x;
-        float y;
-        float z;
-    } mmPerStep;
-
-
     // create motor objects
     StepperObj motorX{ xstep, xdir };
     StepperObj motorY{ ystep, ydir };
@@ -202,14 +197,15 @@ public:
     /* ----- Private Variables ----- */
 private:
     int operatingMode;
+    bool disabled;
 
     /* ----- Public Functions ----- */
 public:
     Gripper();
     bool readJoystick();
     void homingSequence();
-    void home();
-    void prepareTarget(float radius, float angle, float palm);
+    void setHomeTarget();
+    void setMessageTarget();
     bool readGauges();
     bool checkSerial();
     void runMotors(const int loopMillis);

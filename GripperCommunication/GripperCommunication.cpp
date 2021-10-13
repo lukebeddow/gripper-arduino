@@ -87,6 +87,7 @@ bool GripperCommunication::readInput()
 	// extract the raw data
 	inputMessage.instructionByte = inputUnion.structure.instructionByte;
 
+	// if a command has been sent, there will be more data
 	if (inputUnion.structure.instructionByte == sendCommandByte) {
 		inputMessage.radius = inputUnion.structure.radius;
 		inputMessage.angle = inputUnion.structure.angle;

@@ -23,6 +23,7 @@ Gripper::Gripper()
     newReadGauge2 = false;
     newReadGauge3 = false;
     powerSaving = false;
+    disabled = false;
 }
 
 void Gripper::setupMotors()
@@ -146,7 +147,7 @@ bool Gripper::readJoystick()
     // joystick button triggers homing sequence
     if (digitalRead(joystick_push) == LOW) {
         //homingSequence();
-        home();
+        setHomeTarget();
         return false;
     }
 
@@ -207,7 +208,7 @@ void Gripper::homingSequence()
     m.targetReached.z = z_homed;
 }
 
-void Gripper::home()
+void Gripper::setHomeTarget()
 {
     /* This function prepares for homing, afterwards runMotors should be used */
 
@@ -224,17 +225,19 @@ void Gripper::home()
     targetReached = false;
 }
 
-void Gripper::prepareTarget(float radius, float angle, float palm)
+void Gripper::setMessageTarget()
 {
-    /* This function calculates the targets for a given input */
+    /* This function calculates the targets for a given input (mm and radians) */
 
-    // convert the angle command into a target y radius
-    float y_mm = radius - params.xy_diff * sin(angle * (3.141593 / 180.0));
+    // extract the target positions from the input message
+    float x_mm = iostream.inputMessage.radius;
+    float y_mm = x_mm - params.screwDistance_xy * sin(iostream.inputMessage.angle);
+    float z_mm = iostream.inputMessage.palm;
 
     // calculate target revolutions for each motor
-    float revs_x = (params.home.x + radius * params.direction.x) / params.mmPerRev.x;
+    float revs_x = (params.home.x + x_mm * params.direction.x) / params.mmPerRev.x;
     float revs_y = (params.home.y + y_mm * params.direction.y) / params.mmPerRev.y;
-    float revs_z = (params.home.z + palm * params.direction.z) / params.mmPerRev.z;
+    float revs_z = (params.home.z + z_mm * params.direction.z) / params.mmPerRev.z;
     
     // convert target revolutions to target steps
     control.stepTarget.x = revs_x * m.stepsPerRev * m.microstep.x;
@@ -322,31 +325,31 @@ bool Gripper::checkSerial()
 {
     /* This function checks to see if there is an incoming serial message */
 
-    if (Serial2.available() >= iostream.inputMessageSize) {
+    if (Serial2.available() >= 0) {
         // read any input bytes, see if we received a message
         if (iostream.readInput()) {
             // check to see what type of message we received
             switch (iostream.inputMessage.instructionByte) {
-            case iostream.homeByte:
-                homingSequence();
-                break;
             case iostream.sendCommandByte:
-                // FOR TESTING
-                if (iostream.inputMessage.radius == 0 and
-                    iostream.inputMessage.angle == 0 and
-                    iostream.inputMessage.palm == 0) {
-                    home();
-                    break;
-                }
-                prepareTarget(iostream.inputMessage.radius,
-                    iostream.inputMessage.angle,
-                    iostream.inputMessage.palm);
+                setMessageTarget();
                 break;
-            case iostream.getTargetStatusByte:
-                // REMOVE THIS?
+            case iostream.homeByte:
+                setHomeTarget();
                 break;
-            case iostream.requestGaugeByte:
-                // REMOVE THIS?
+            case iostream.powerSavingOnByte:
+                powerSaving = true;
+                break;
+            case iostream.powerSavingOffByte:
+                motorEnable(true);
+                powerSaving = false;
+                break;
+            case iostream.stopByte:
+                motorEnable(false);
+                disabled = true;
+                break;
+            case iostream.resumeByte:
+                motorEnable(true);
+                disabled = false;
                 break;
             }
 
@@ -360,6 +363,11 @@ bool Gripper::checkSerial()
 void Gripper::runMotors(const int loopMillis)
 {
     /* This function pulses the motors based on the current operation mode */
+
+    // if gripper is in disabled mode, do not move any motors
+    if (disabled) {
+        return;
+    }
 
     unsigned long loopStartMillis = millis();
 

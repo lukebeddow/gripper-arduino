@@ -6,10 +6,10 @@ public:
 	// define bytes for communication instructions
 	static constexpr byte sendCommandByte = 100;
 	static constexpr byte homeByte = 101;
-	static constexpr byte getTargetStatusByte = 102;
-	static constexpr byte requestGaugeByte = 103;
-	static constexpr byte handshakeByte = 104;
-	static constexpr byte statusMessageByte = 105;
+	static constexpr byte powerSavingOnByte = 102;
+	static constexpr byte powerSavingOffByte = 103;
+	static constexpr byte stopByte = 104;
+	static constexpr byte resumeByte = 105;
 
 	static constexpr byte messageReceivedByte = 200;
 	static constexpr byte messageFailedByte = 201;
