@@ -190,6 +190,11 @@ void Gripper::homingSequence()
 {
     /* Home all of the motors of the gripper, non-interruptible */
 
+    // if gripper is in disabled mode, do not move any motors
+    if (disabled) {
+        return;
+    }
+
     // which motors do we need to home
     bool x_homed = not m.inUse.x;
     bool y_homed = not m.inUse.y;
@@ -289,43 +294,20 @@ void Gripper::readGauge(const int gauge_num)
     }
 }
 
-bool Gripper::readGauges()
+void Gripper::readGauges()
 {
-    /* Check if data can be extracted from strain gauges, read if so */
+    /* Read all three gauges */
 
-    // check to see if gauges have a new reading
-    if (gauge1.is_ready() and not newReadGauge1) {
-        // read the gauge (takes 380us)
-        iostream.outputMessage.gaugeOneReading = gauge1.read();
-        newReadGauge1 = true;
-    }
-    if (gauge2.is_ready() and not newReadGauge2) {
-        // read the gauge (takes 380us)
-        iostream.outputMessage.gaugeTwoReading = gauge2.read();
-        newReadGauge2 = true;
-    }
-    if (gauge3.is_ready() and not newReadGauge3) {
-        // read the gauge (takes 380us)
-        iostream.outputMessage.gaugeThreeReading = gauge3.read();
-        newReadGauge3 = true;
-    }
-
-    // if all the gauges are ready to publish, return true
-    if (newReadGauge1 and newReadGauge2 and newReadGauge3) {
-        newReadGauge1 = false;
-        newReadGauge2 = false;
-        newReadGauge3 = false;
-        return true;
-    }
-
-    return false;
+    readGauge(1);
+    readGauge(2);
+    readGauge(3);
 }
 
 bool Gripper::checkSerial()
 {
     /* This function checks to see if there is an incoming serial message */
 
-    if (Serial2.available() >= 0) {
+    if (Serial2.available() > 0) {
         // read any input bytes, see if we received a message
         if (iostream.readInput()) {
             // check to see what type of message we received
@@ -340,7 +322,7 @@ bool Gripper::checkSerial()
                 powerSaving = true;
                 break;
             case iostream.powerSavingOffByte:
-                motorEnable(true);
+                if (!disabled) motorEnable(true);
                 powerSaving = false;
                 break;
             case iostream.stopByte:
@@ -413,9 +395,6 @@ void Gripper::runMotors(const int loopMillis)
             m.targetReached.z) {
             targetReached = true;
         }
-        // else {
-        //     targetReached = false;
-        // }
     }
     // homing mode
     else if (operatingMode == 2) {
@@ -479,30 +458,14 @@ void Gripper::setMotorPositions()
 
 void Gripper::checkInputs()
 {
-    /* This function checks to see if the gripper is receiving inputs */
+    /* This function monitors the input streams to the gripper */
 
-    // check the two input streams for commands
+    // check for commands
     readJoystick();
     checkSerial();
-    if (readGauges()) {
-        publishOutput();
-    }
 
-    // // check the ADC inputs for the strain gauges
-    // if (readGauges()) {
-    //     // if the gauges are ready, publish their data over bluetooth
-    //     iostream.outputMessage.isTargetReached = targetReached;
-    //     iostream.publishOutput();
-    // }
-
-    // // check if we have reached our target (n/a for joystick mode)
-    // if (not targetReached and operatingMode != 0) {
-    //     if (m.targetReached.x and
-    //         m.targetReached.y and
-    //         m.targetReached.z) {
-    //         targetReached = true;
-    //     }
-    // }
+    // check for incoming gauge data
+    readGauges();
 }
 
 void Gripper::publishOutput()
@@ -512,11 +475,12 @@ void Gripper::publishOutput()
 
     // check if all the gauges have new data to publish
     if (newReadGauge1 and newReadGauge2 and newReadGauge3) {
-        // publish gauge data
+        // fill data into the output message
         iostream.outputMessage.isTargetReached = targetReached;
         setMotorPositions();
+        // publish the message on Serial2 (hardcoded)
         iostream.publishOutput();
-        // gauge readings now out of date
+        // gauge readings are now out of date
         newReadGauge1 = false;
         newReadGauge2 = false;
         newReadGauge3 = false;
@@ -525,7 +489,7 @@ void Gripper::publishOutput()
 
 void Gripper::smoothRun(int cycleTime_ms)
 {
-    /* This function attempts to run the gripper smoothly, interspercing
+    /* This function attempts to run the gripper smoothly, interspersing
     I/O operations with running the motors */
 
     /* Tasks:
@@ -541,7 +505,7 @@ void Gripper::smoothRun(int cycleTime_ms)
 
     constexpr int numTasks = 6;
     constexpr int minTaskTime_ms = 2;       // milliseconds
-    constexpr int minRunPadding_ms = 1;     // milliseconds
+    constexpr int minRunPadding_ms = 2;     // milliseconds
 
     // enforce a minimum cycle time
     if (cycleTime_ms < minTaskTime_ms * numTasks + minRunPadding_ms) {

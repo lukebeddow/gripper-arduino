@@ -11,9 +11,9 @@
 // define the gripper class
 class Gripper
 {
-public:
+private:
 
-    /* ----- Public Variables ----- */
+    /* ----- Key motor variables ----- */
 
     // define motor parameters
     struct MotorParam {
@@ -180,45 +180,45 @@ public:
     // create input/output stream
     GripperCommunication iostream;
 
-    bool targetReached;
-    bool powerSaving;
-
-    // booleans to save whether we have unpublished gauge data
-    bool newReadGauge1;
-    bool newReadGauge2;
-    bool newReadGauge3;
-
+    // mm travel of the screws per step of the stepper motors
     struct {
         float x;
         float y;
         float z;
     } mmPerStep;
 
-    /* ----- Private Variables ----- */
-private:
     int operatingMode;
-    bool disabled;
+    bool targetReached;
+
+    // booleans to save whether we have unpublished gauge data
+    bool newReadGauge1;
+    bool newReadGauge2;
+    bool newReadGauge3;
+
+    /* ----- Public variables ----- */
+public:
+    bool powerSaving;           // motors are turned off when not moving
+    bool disabled;              // motors are prevented from moving
 
     /* ----- Public Functions ----- */
 public:
     Gripper();
-    bool readJoystick();
     void homingSequence();
-    void setHomeTarget();
-    void setMessageTarget();
-    bool readGauges();
-    bool checkSerial();
-    void runMotors(const int loopMillis);
-    void motorEnable(bool is_enabled);
-    void setOutputMessagePosition();
+    void readGauges();
     void checkInputs();
     void publishOutput();
+    void runMotors(const int loopMillis);
     void smoothRun(int cycleTime_ms);
-    void readGauge(const int gauge_num);
-    void setMotorPositions();
 
     /* ----- Private Functions ----- */
 private:
     void setupMotors();
     void setPins();
+    void setMotorPositions();
+    bool readJoystick();
+    void readGauge(const int gauge_num);
+    bool checkSerial();
+    void setHomeTarget();
+    void setMessageTarget();
+    void motorEnable(bool is_enabled);
 };
