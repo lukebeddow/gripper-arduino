@@ -31,3 +31,17 @@ void loop() {
   
 }
 ```
+Rather than use smoothRun, the gripper can also be run using:
+
+```c++
+
+  // check for commands and gauge data
+  mygripper.checkInputs();
+  
+  // publish a message if a new one is ready
+  mygripper.publishOutput();
+  
+  // run the motors for a cycle of 20ms
+  mygripper.runMotors(20);
+```
+
