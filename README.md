@@ -7,11 +7,12 @@ Gripper_v2 contains the main gripper class. GripperCommunication is a class to h
 To use the gripper class:
 
 ```c++
+#include <Arduino.h>
 #include <Gripper_v2.h>
+
 Gripper mygripper;
 
 void setup() {
-
   // non-interruptible homing sequence, required to calibrate motors
   mygripper.homingSequence();
   
@@ -20,7 +21,6 @@ void setup() {
 }
 
 void loop() {
-  
   // run smoothed cycles (minimise noise) for 20ms each
   mygripper.smoothRun(20);
 }
