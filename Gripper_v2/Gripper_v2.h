@@ -32,7 +32,7 @@ private:
         struct MaxSpeed {
             float x = 300;
             float y = 300;
-            float z = 350;
+            float z = 300;
         };
         MaxSpeed maxSpeed;
 
@@ -168,9 +168,9 @@ private:
     Params params;
 
     // create motor objects
-    StepperObj motorX{ xstep, xdir };
-    StepperObj motorY{ ystep, ydir };
-    StepperObj motorZ{ zstep, zdir };
+    StepperObj motorX { xstep, xdir };
+    StepperObj motorY { ystep, ydir };
+    StepperObj motorZ { zstep, zdir };
 
     // create strain gauge objects
     HX711 gauge1;

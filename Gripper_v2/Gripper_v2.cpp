@@ -475,11 +475,14 @@ void Gripper::publishOutput()
 
     // check if all the gauges have new data to publish
     if (newReadGauge1 and newReadGauge2 and newReadGauge3) {
+
         // fill data into the output message
         iostream.outputMessage.isTargetReached = targetReached;
         setMotorPositions();
+
         // publish the message on Serial2 (hardcoded)
         iostream.publishOutput();
+        
         // gauge readings are now out of date
         newReadGauge1 = false;
         newReadGauge2 = false;

@@ -15,23 +15,23 @@ StepperObj::StepperObj(int stepPin, int dirPin)
 	_clockwise = true;			// logic level at dir pin for clockwise rotation
 	_stepsPerRev = 200;			// steps for one revolution
 	_pulseWidthMicro = 5;		// pulse width in microseconds
-								// -> the A4988 is rising edge triggered
+													// -> the A4988 is rising edge triggered
 	_lastPulseMicros = 0;		// time of the last step pulse in microseconds
-	_rpm = 100.0;				// default motor speed in revs per minute
+	_rpm = 100.0;						// default motor speed in revs per minute
 
 	// define safety parameters
-	_limitPPS = 4000;			// maximum allowable pulses per second
-								// -> typically lose torque above 1400pps
-								// -> don't exceed 20,000pps
-								// -> 2000pps = 300rpm @ 400 steps per rev
+	_limitPPS = 4000;				// maximum allowable pulses per second
+													// -> typically lose torque above 1400pps
+													// -> don't exceed 20,000pps
+													// -> 2000pps = 300rpm @ 400 steps per rev
 
 	// initialise limit pin and workspace parameters to defaults
-	_stepNumber = 0;			// which step are we on
-	_stepTarget = 0;			// which step number is our target
-	_increment = 1;				// value of one step, +1 or -1
-	_homeNumber = 0;			// which step is home position
-	_endNumber = 1;				// which step is the end of the workspace
-	_homingSeq = 0;				// homing sequence flag (0 = not homing)
+	_stepNumber = 0;				// which step are we on
+	_stepTarget = 0;				// which step number is our target
+	_increment = 1;					// value of one step, +1 or -1
+	_homeNumber = 0;				// which step is home position
+	_endNumber = 1;					// which step is the end of the workspace
+	_homingSeq = 0;					// homing sequence flag (0 = not homing)
 	_homingSpeed = 100.0;		// speed at which homing should occur
 	_limitSwitch = false;		// are we using a limit switch
 	_limitActive = true;		// logic level when limit switch is active
@@ -66,10 +66,10 @@ StepperObj::StepperObj(int stepPin, int dirPin)
 	/* ----- Ramping acceleration parameters ----- */
 
 	// startup acceleration parameters
-	_noRampPPS = 500;				// speed that the motor can reach without ramping
+	_noRampPPS = 500;							// speed that the motor can reach without ramping
 	_changedDirection = false;		// initialise to false
-	_ramping = true;				// are we currently ramping up to speed
-	_rampReductionMicro = 50;		// rate at which we reduce time between pulses
+	_ramping = true;							// are we currently ramping up to speed
+	_rampReductionMicro = 50;			// rate at which we reduce time between pulses
 	_rampWaitMicro = _waitMicro;	// time between steps for ramping
 
 	// determine the no ramp rpm, below which we will not ramp
