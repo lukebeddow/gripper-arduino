@@ -206,6 +206,7 @@ public:
     void homingSequence();
     void readGauges();
     void checkInputs();
+    void sendErrorMessage(byte error_code);
     void publishOutput();
     void runMotors(const int loopMillis);
     void smoothRun(int cycleTime_ms);

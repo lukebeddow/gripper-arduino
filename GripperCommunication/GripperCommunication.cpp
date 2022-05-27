@@ -9,16 +9,18 @@ GripperCommunication::GripperCommunication()
 
 	// initialise variables to zero
 	inputMessage.instructionByte = 0;
-	inputMessage.radius = 0.0;
-	inputMessage.angle = 0.0;
+	inputMessage.x = 0.0;
+	inputMessage.y = 0.0;
+	inputMessage.z = 0.0;
 
+	outputMessage.informationByte = 0;
 	outputMessage.isTargetReached = false;
 	outputMessage.gaugeOneReading = 0;
 	outputMessage.gaugeTwoReading = 0;
 	outputMessage.gaugeThreeReading = 0;
-	outputMessage.motorXPosition = -1;
-	outputMessage.motorYPosition = -1;
-	outputMessage.motorZPosition = -1;
+	outputMessage.motorX_mm = -1;
+	outputMessage.motorY_mm = -1;
+	outputMessage.motorZ_mm = -1;
 }
 
 bool GripperCommunication::readInput()
@@ -91,10 +93,11 @@ bool GripperCommunication::readInput()
 	inputMessage.instructionByte = inputUnion.structure.instructionByte;
 
 	// if a command has been sent, there will be more data
-	if (inputUnion.structure.instructionByte == sendCommandByte) {
-		inputMessage.radius = inputUnion.structure.radius;
-		inputMessage.angle = inputUnion.structure.angle;
-		inputMessage.palm = inputUnion.structure.palm;
+	if (inputUnion.structure.instructionByte >= commandByteMinimum and
+			inputUnion.structure.instructionByte <= commandByteMaximum) {
+		inputMessage.x = inputUnion.structure.x;
+		inputMessage.y = inputUnion.structure.y;
+		inputMessage.z = inputUnion.structure.z;
 	}
 
 	// now reset all variables before a new message comes in
@@ -110,13 +113,14 @@ void GripperCommunication::publishOutput()
 	/* This member function pubishes a message on the serial connection */
 
 	// set the data
+	outputUnion.structure.informationByte = outputMessage.informationByte;
 	outputUnion.structure.isTargetReached = outputMessage.isTargetReached;
 	outputUnion.structure.gaugeOneReading = outputMessage.gaugeOneReading;
 	outputUnion.structure.gaugeTwoReading = outputMessage.gaugeTwoReading;
 	outputUnion.structure.gaugeThreeReading = outputMessage.gaugeThreeReading;
-	outputUnion.structure.motorXPosition = outputMessage.motorXPosition;
-	outputUnion.structure.motorYPosition = outputMessage.motorYPosition;
-	outputUnion.structure.motorZPosition = outputMessage.motorZPosition;
+	outputUnion.structure.motorX_mm = outputMessage.motorX_mm;
+	outputUnion.structure.motorY_mm = outputMessage.motorY_mm;
+	outputUnion.structure.motorZ_mm = outputMessage.motorZ_mm;
 
 	// begin the message with the start marker
 	for (int i = 0; i < startEndSize; i++) {

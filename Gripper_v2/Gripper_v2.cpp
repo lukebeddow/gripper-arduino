@@ -8,13 +8,14 @@ Gripper::Gripper()
     setupMotors();
     setPins();
 
-    /* ----- Setup the gauges ----- */
+    // begin running HX711 chips to monitor gauges
     gauge1.begin(SG1_dt, SG1_sck);
-    //gauge1.set_scale(loadcell_divider);
-    //gauge1.set_offset(loadcell_offset);
-
     gauge2.begin(SG2_dt, SG2_sck);
     gauge3.begin(SG3_dt, SG3_sck);
+
+    // do we apply a scaling and offset here? not currently
+    // gauge1.set_scale(loadcell_divider);
+    // gauge1.set_offset(loadcell_offset);
 
     // set to defaults (0=joystick, 1=serial)
     operatingMode = 1;
@@ -234,10 +235,41 @@ void Gripper::setMessageTarget()
 {
     /* This function calculates the targets for a given input (mm and radians) */
 
-    // extract the target positions from the input message
-    float x_mm = iostream.inputMessage.radius;
-    float y_mm = x_mm - params.screwDistance_xy * sin(iostream.inputMessage.angle);
-    float z_mm = iostream.inputMessage.palm;
+    float x_mm = 0;
+    float y_mm = 0;
+    float z_mm = 0;
+
+    // convert the input message to millimeter motor positions
+    if (iostream.inputMessage.instructionByte == iostream.motorCommandByte_m) {
+        x_mm = iostream.inputMessage.x * 1e3;
+        y_mm = iostream.inputMessage.y * 1e3;
+        z_mm = iostream.inputMessage.z * 1e3;
+    }
+    else if (iostream.inputMessage.instructionByte == iostream.motorCommandByte_mm) {
+        x_mm = iostream.inputMessage.x;
+        y_mm = iostream.inputMessage.y;
+        z_mm = iostream.inputMessage.z;
+    }
+    else if (iostream.inputMessage.instructionByte == iostream.jointCommandByte_m_rad) {
+        x_mm = iostream.inputMessage.x * 1e3;
+        y_mm = x_mm - params.screwDistance_xy * sin(iostream.inputMessage.y);
+        z_mm = iostream.inputMessage.z * 1e3;
+    }
+    else if (iostream.inputMessage.instructionByte == iostream.jointCommandByte_mm_deg) {
+        constexpr float to_rad = 3.141592654 / 180.0;
+        x_mm = iostream.inputMessage.x;
+        y_mm = x_mm - params.screwDistance_xy * sin(iostream.inputMessage.y * to_rad);
+        z_mm = iostream.inputMessage.z;
+    }
+    else {
+        sendErrorMessage(iostream.invalidCommandByte);
+        return;
+    }
+
+    // // for testing
+    // Serial.print("x_mm is "); Serial.println(x_mm);
+    // Serial.print("y_mm is "); Serial.println(y_mm);
+    // Serial.print("z_mm is "); Serial.println(z_mm);
 
     // calculate target revolutions for each motor
     float revs_x = (params.home.x + x_mm * params.direction.x) / params.mmPerRev.x;
@@ -312,7 +344,10 @@ bool Gripper::checkSerial()
         if (iostream.readInput()) {
             // check to see what type of message we received
             switch (iostream.inputMessage.instructionByte) {
-            case iostream.sendCommandByte:
+            case iostream.motorCommandByte_m:
+            case iostream.motorCommandByte_mm:
+            case iostream.jointCommandByte_m_rad:
+            case iostream.jointCommandByte_mm_deg:
                 setMessageTarget();
                 break;
             case iostream.homeByte:
@@ -448,11 +483,11 @@ void Gripper::setMotorPositions()
 {
     /* This function sets the motor positions for the output message */
 
-    iostream.outputMessage.motorXPosition = 
+    iostream.outputMessage.motorX_mm = 
         params.home.x + (mmPerStep.x * motorX.getStep());
-    iostream.outputMessage.motorYPosition = 
+    iostream.outputMessage.motorY_mm = 
         params.home.y + (mmPerStep.y * motorY.getStep());
-    iostream.outputMessage.motorZPosition = 
+    iostream.outputMessage.motorZ_mm = 
         params.home.z + (mmPerStep.z * motorZ.getStep());
 }
 
@@ -466,6 +501,22 @@ void Gripper::checkInputs()
 
     // check for incoming gauge data
     readGauges();
+}
+
+void Gripper::sendErrorMessage(byte error_code)
+{
+    /* send an empty message with a specific error code byte to indicate an error */
+
+    iostream.outputMessage.informationByte = error_code;
+    iostream.outputMessage.isTargetReached = 0;
+	iostream.outputMessage.gaugeOneReading = 0;
+	iostream.outputMessage.gaugeTwoReading = 0;
+	iostream.outputMessage.gaugeThreeReading = 0;
+	iostream.outputMessage.motorX_mm = -1;
+	iostream.outputMessage.motorY_mm = -1;
+	iostream.outputMessage.motorZ_mm = -1;
+
+    iostream.publishOutput();
 }
 
 void Gripper::publishOutput()
