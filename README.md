@@ -5,7 +5,7 @@ Arduino libraries I have written to run the gripper.
 * ```GripperCommunication``` defines bluetooth message settings, byte definitions, and message contents.
 * ```StepperObj``` defines a stepper motor class to control at low level.
 
-
+To
 
 The arudino pins for I/O are defined in ```Gripper_v2/pin_definitions.h```. The Gripper_v2.h class also requires installing the HX711_Arudino_Library: https://www.arduino.cc/reference/en/libraries/hx711-arduino-library/
 
@@ -13,7 +13,13 @@ To use the gripper class, upload the following sketch to the arudino:
 
 ```c++
 
-#include <Gripper_v2.h> // main gripper library, defines the Gripper class
+#include <Gripper_v2.h>
+
+/* the following arduino libraries are required for Gripper_v2.h:
+    #include <GripperCommunication.h>
+    #include <StepperObj.h>
+    #include <HX711.h>
+*/
 
 Gripper mygripper;
 
