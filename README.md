@@ -1,16 +1,19 @@
 # luke-gripper-arduino
 
 Arduino libraries I have written to run the gripper.
+* ```Gripper_v2``` contains the main gripper class and functions used to control it.
+* ```GripperCommunication``` defines bluetooth message settings, byte definitions, and message contents.
+* ```StepperObj``` defines a stepper motor class to control at low level.
 
-Gripper_v2 contains the main gripper class. GripperCommunication is a class to handle sending serial messages back and forth. StepperObj is a class to control a stepper motor, including safety controls.
 
-The arudino pins for I/O are defined in Gripper_v2/pin_definitions.h. The Gripper_v2.h class also requires installing the HX711_Arudino_Library: https://www.arduino.cc/reference/en/libraries/hx711-arduino-library/
+
+The arudino pins for I/O are defined in ```Gripper_v2/pin_definitions.h```. The Gripper_v2.h class also requires installing the HX711_Arudino_Library: https://www.arduino.cc/reference/en/libraries/hx711-arduino-library/
 
 To use the gripper class, upload the following sketch to the arudino:
 
 ```c++
-#include <Arduino.h>
-#include <Gripper_v2.h>
+
+#include <Gripper_v2.h> // main gripper library, defines the Gripper class
 
 Gripper mygripper;
 
@@ -18,6 +21,9 @@ void setup() {
 
   // non-interruptible homing sequence, required to calibrate motors
   mygripper.homingSequence();
+
+  // connection with computer via usb, optional but useful for debugging
+  Serial.begin(9600);
   
   // setup serial connection, Serial2 is hardcoded in GripperCommunication as a global
   Serial2.begin(115200);
@@ -54,3 +60,4 @@ Finally, the gripper can be put into power saving mode, or disabled - which mean
   // motors are prevented from moving
   mygripper.disabled = true
 ```
+
