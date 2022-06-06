@@ -8,9 +8,10 @@ public:
 	static constexpr byte motorCommandByte_mm = 101;
 	static constexpr byte jointCommandByte_m_rad = 102;
 	static constexpr byte jointCommandByte_mm_deg = 103;
+	static constexpr byte stepCommandByte = 104;
 
 	static constexpr byte commandByteMinimum = 100; // set these based on above
-	static constexpr byte commandByteMaximum = 103;
+	static constexpr byte commandByteMaximum = 104;
 
 	// bytes for special behaviour and modifying settings
 	static constexpr byte homeByte = 110;

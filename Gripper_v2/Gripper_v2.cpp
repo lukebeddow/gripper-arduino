@@ -261,6 +261,12 @@ void Gripper::setMessageTarget()
         y_mm = x_mm - params.screwDistance_xy * sin(iostream.inputMessage.y * to_rad);
         z_mm = iostream.inputMessage.z;
     }
+    else if (iostream.inputMessage.instructionByte == iostream.stepCommandByte) {
+        control.stepTarget.x = iostream.inputMessage.x;
+        control.stepTarget.y = iostream.inputMessage.y;
+        control.stepTarget.z = iostream.inputMessage.z;
+        goto GOTO_after_step_set;
+    }
     else {
         sendErrorMessage(iostream.invalidCommandByte);
         return;
@@ -280,6 +286,8 @@ void Gripper::setMessageTarget()
     control.stepTarget.x = revs_x * m.stepsPerRev * m.microstep.x;
     control.stepTarget.y = revs_y * m.stepsPerRev * m.microstep.y;
     control.stepTarget.z = revs_z * m.stepsPerRev * m.microstep.z;
+
+GOTO_after_step_set:
 
     // set motor speeds
     motorX.setRPM(m.maxSpeed.x);
@@ -342,32 +350,40 @@ bool Gripper::checkSerial()
     if (Serial2.available() > 0) {
         // read any input bytes, see if we received a message
         if (iostream.readInput()) {
-            // check to see what type of message we received
-            switch (iostream.inputMessage.instructionByte) {
-            case iostream.motorCommandByte_m:
-            case iostream.motorCommandByte_mm:
-            case iostream.jointCommandByte_m_rad:
-            case iostream.jointCommandByte_mm_deg:
+            // have we received a position command message
+            if (iostream.inputMessage.instructionByte >= iostream.commandByteMinimum or
+                iostream.inputMessage.instructionByte >= iostream.commandByteMaximum) {
                 setMessageTarget();
-                break;
-            case iostream.homeByte:
-                setHomeTarget();
-                break;
-            case iostream.powerSavingOnByte:
-                powerSaving = true;
-                break;
-            case iostream.powerSavingOffByte:
-                if (!disabled) motorEnable(true);
-                powerSaving = false;
-                break;
-            case iostream.stopByte:
-                motorEnable(false);
-                disabled = true;
-                break;
-            case iostream.resumeByte:
-                motorEnable(true);
-                disabled = false;
-                break;
+            }
+            else {
+                // check for special case message type
+                switch (iostream.inputMessage.instructionByte) {
+                // case iostream.motorCommandByte_m:
+                // case iostream.motorCommandByte_mm:
+                // case iostream.jointCommandByte_m_rad:
+                // case iostream.jointCommandByte_mm_deg:
+                // case iostream.stepCommandByte:
+                //     setMessageTarget();
+                //     break;
+                case iostream.homeByte:
+                    setHomeTarget();
+                    break;
+                case iostream.powerSavingOnByte:
+                    powerSaving = true;
+                    break;
+                case iostream.powerSavingOffByte:
+                    if (!disabled) motorEnable(true);
+                    powerSaving = false;
+                    break;
+                case iostream.stopByte:
+                    motorEnable(false);
+                    disabled = true;
+                    break;
+                case iostream.resumeByte:
+                    motorEnable(true);
+                    disabled = false;
+                    break;
+                }
             }
 
             return true;
