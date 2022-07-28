@@ -17,14 +17,22 @@ Gripper::Gripper()
     // gauge1.set_scale(loadcell_divider);
     // gauge1.set_offset(loadcell_offset);
 
-    // set to defaults (0=joystick, 1=serial)
+    // set flags to defaults (0=joystick, 1=serial)
     operatingMode = 1;
     targetReached = true;
     newReadGauge1 = false;
     newReadGauge2 = false;
     newReadGauge3 = false;
-    powerSaving = false;
+
+    // default optional parameters
+    powerSaving = true;
     disabled = false;
+    debug = false;
+
+    // speed defaults
+    setSpeed.x = m.maxSpeed.x;
+    setSpeed.y = m.maxSpeed.y;
+    setSpeed.z = m.maxSpeed.z;
 }
 
 void Gripper::setupMotors()
@@ -144,6 +152,7 @@ bool Gripper::readJoystick()
 
     // otherwise, the joystick is connected and enabled
     operatingMode = 0;
+    disabled = false;
 
     // joystick button triggers homing sequence
     if (digitalRead(joystick_push) == LOW) {
@@ -218,6 +227,10 @@ void Gripper::setHomeTarget()
 {
     /* This function prepares for homing, afterwards runMotors should be used */
 
+    if (debug) {
+        Serial.print("Setting home target\n");
+    }
+
     // in case a previous homing sequence was interrupted
     motorX.wipeHomingFlag();
     motorY.wipeHomingFlag();
@@ -231,6 +244,45 @@ void Gripper::setHomeTarget()
     targetReached = false;
 }
 
+void Gripper::setSpeedTarget()
+{
+    /* save a speed target */
+
+    if (debug) {
+        Serial.print("Incoming speed request (x, y, z) of: (");
+        Serial.print(iostream.inputMessage.x);
+        Serial.print(", ");
+        Serial.print(iostream.inputMessage.y);
+        Serial.print(", ");
+        Serial.print(iostream.inputMessage.z);
+        Serial.print(")\n");
+    }
+
+    setSpeed.x = iostream.inputMessage.x;
+    setSpeed.y = iostream.inputMessage.y;
+    setSpeed.z = iostream.inputMessage.z;
+
+    // safety checks
+    if (setSpeed.x < 0) setSpeed.x = 0;
+    if (setSpeed.x > m.maxSpeed.x) setSpeed.x = m.maxSpeed.x;
+
+    if (setSpeed.y < 0) setSpeed.y = 0;
+    if (setSpeed.y > m.maxSpeed.y) setSpeed.y = m.maxSpeed.y;
+
+    if (setSpeed.z < 0) setSpeed.z = 0;
+    if (setSpeed.z > m.maxSpeed.z) setSpeed.z = m.maxSpeed.z;
+
+    if (debug) {
+        Serial.print("Speed target (x, y, z) set: (");
+        Serial.print(setSpeed.x);
+        Serial.print(", ");
+        Serial.print(setSpeed.y);
+        Serial.print(", ");
+        Serial.print(setSpeed.z);
+        Serial.print(")\n");
+    }
+}
+
 void Gripper::setMessageTarget()
 {
     /* This function calculates the targets for a given input (mm and radians) */
@@ -241,27 +293,32 @@ void Gripper::setMessageTarget()
 
     // convert the input message to millimeter motor positions
     if (iostream.inputMessage.instructionByte == iostream.motorCommandByte_m) {
+        if (debug) { Serial.print("Received motor command m\n"); }
         x_mm = iostream.inputMessage.x * 1e3;
         y_mm = iostream.inputMessage.y * 1e3;
         z_mm = iostream.inputMessage.z * 1e3;
     }
     else if (iostream.inputMessage.instructionByte == iostream.motorCommandByte_mm) {
+        if (debug) { Serial.print("Received motor command mm\n"); }
         x_mm = iostream.inputMessage.x;
         y_mm = iostream.inputMessage.y;
         z_mm = iostream.inputMessage.z;
     }
     else if (iostream.inputMessage.instructionByte == iostream.jointCommandByte_m_rad) {
+        if (debug) { Serial.print("Received motor command m rad\n"); }
         x_mm = iostream.inputMessage.x * 1e3;
         y_mm = x_mm - params.screwDistance_xy * sin(iostream.inputMessage.y);
         z_mm = iostream.inputMessage.z * 1e3;
     }
     else if (iostream.inputMessage.instructionByte == iostream.jointCommandByte_mm_deg) {
+        if (debug) { Serial.print("Received motor command mm deg\n"); }
         constexpr float to_rad = 3.141592654 / 180.0;
         x_mm = iostream.inputMessage.x;
         y_mm = x_mm - params.screwDistance_xy * sin(iostream.inputMessage.y * to_rad);
         z_mm = iostream.inputMessage.z;
     }
     else if (iostream.inputMessage.instructionByte == iostream.stepCommandByte) {
+        if (debug) { Serial.print("Received motor command step\n"); }
         control.stepTarget.x = iostream.inputMessage.x;
         control.stepTarget.y = iostream.inputMessage.y;
         control.stepTarget.z = iostream.inputMessage.z;
@@ -272,10 +329,11 @@ void Gripper::setMessageTarget()
         return;
     }
 
-    // // for testing
-    // Serial.print("x_mm is "); Serial.println(x_mm);
-    // Serial.print("y_mm is "); Serial.println(y_mm);
-    // Serial.print("z_mm is "); Serial.println(z_mm);
+    if (debug) {
+        Serial.print("x_mm is "); Serial.println(x_mm);
+        Serial.print("y_mm is "); Serial.println(y_mm);
+        Serial.print("z_mm is "); Serial.println(z_mm);
+    }
 
     // calculate target revolutions for each motor
     float revs_x = (params.home.x + x_mm * params.direction.x) / params.mmPerRev.x;
@@ -290,9 +348,9 @@ void Gripper::setMessageTarget()
 GOTO_after_step_set:
 
     // set motor speeds
-    motorX.setRPM(m.maxSpeed.x);
-    motorY.setRPM(m.maxSpeed.y);
-    motorZ.setRPM(m.maxSpeed.z);
+    motorX.setRPM(setSpeed.x);
+    motorY.setRPM(setSpeed.y);
+    motorZ.setRPM(setSpeed.z);
 
     // set the motor targets
     motorX.setTarget(control.stepTarget.x);
@@ -350,38 +408,56 @@ bool Gripper::checkSerial()
     if (Serial2.available() > 0) {
         // read any input bytes, see if we received a message
         if (iostream.readInput()) {
+
+            if (debug) {
+                Serial.print("Received message, instruction byte is ");
+                Serial.println(iostream.inputMessage.instructionByte);
+            }
+
             // have we received a position command message
-            if (iostream.inputMessage.instructionByte >= iostream.commandByteMinimum or
-                iostream.inputMessage.instructionByte >= iostream.commandByteMaximum) {
+            if (iostream.inputMessage.instructionByte >= iostream.commandByteMinimum and
+                iostream.inputMessage.instructionByte <= iostream.commandByteMaximum) {
                 setMessageTarget();
             }
             else {
+
                 // check for special case message type
                 switch (iostream.inputMessage.instructionByte) {
-                // case iostream.motorCommandByte_m:
-                // case iostream.motorCommandByte_mm:
-                // case iostream.jointCommandByte_m_rad:
-                // case iostream.jointCommandByte_mm_deg:
-                // case iostream.stepCommandByte:
-                //     setMessageTarget();
-                //     break;
                 case iostream.homeByte:
                     setHomeTarget();
                     break;
                 case iostream.powerSavingOnByte:
+                    if (debug) { Serial.print("Power saving set to true\n"); }
                     powerSaving = true;
                     break;
                 case iostream.powerSavingOffByte:
+                    if (debug) { Serial.print("Power saving set to false\n"); }
                     if (!disabled) motorEnable(true);
                     powerSaving = false;
                     break;
                 case iostream.stopByte:
+                    if (debug) { Serial.print("Disabled set to true\n"); }
                     motorEnable(false);
                     disabled = true;
                     break;
                 case iostream.resumeByte:
+                    if (debug) { Serial.print("Disabled set to false\n"); }
                     motorEnable(true);
                     disabled = false;
+                    break;
+                case iostream.setSpeedByte:
+                    setSpeedTarget();
+                    break;
+                case iostream.debugOnByte:
+                    Serial.print("Debug set to true\n");
+                    debug = true;
+                    break;
+                case iostream.debugOffByte:
+                    Serial.print("Debug set to false\n");
+                    debug = false;
+                    break;
+                case iostream.printByte:
+                    print();
                     break;
                 }
             }
@@ -607,7 +683,68 @@ void Gripper::smoothRun(int cycleTime_ms)
     // finally, we want to run the motors until the cycle time is up
     unsigned long endTime_us = micros();
     unsigned long elapsedTime_ms = (endTime_us - startTime_us) / 1000;
-    unsigned int remainingTime_ms = cycleTime_ms - elapsedTime_ms;
+    int remainingTime_ms = cycleTime_ms - elapsedTime_ms;
 
-    runMotors(remainingTime_ms);
+    if (remainingTime_ms > 0) {
+        runMotors(remainingTime_ms);
+    }
+    else if (debug) {
+        Serial.print("Cycle time exceeded\n");
+    }
+    
+}
+
+void Gripper::print()
+{
+    /* print information to Serial terminal */
+
+    Serial.print("\n--- start print ---\n");
+
+    // print motor step position
+    Serial.print("Current motor steps (x, y, z): (");
+    Serial.print(motorX.getStep());
+    Serial.print(", ");
+    Serial.print(motorY.getStep());
+    Serial.print(", ");
+    Serial.print(motorZ.getStep());
+    Serial.print(")\n");
+
+    // print motor joint state
+    Serial.print("Joint positions (x, th, z): (");
+    Serial.print(params.home.x + (mmPerStep.x * motorX.getStep()));
+    Serial.print(", ");
+    Serial.print(params.home.y + (mmPerStep.y * motorY.getStep()));
+    Serial.print(", ");
+    Serial.print(params.home.z + (mmPerStep.z * motorZ.getStep()));
+    Serial.print(")\n");
+
+    // print motor set speeds
+    Serial.print("Motor speed settings (x, y, z): (");
+    Serial.print(setSpeed.x);
+    Serial.print(", ");
+    Serial.print(setSpeed.y);
+    Serial.print(", ");
+    Serial.print(setSpeed.z);
+    Serial.print(")\n");
+
+    // print last gauge readings
+    Serial.print("The last gauge readings were (g1, g2, g3): (");
+    Serial.print(iostream.outputMessage.gaugeOneReading);
+    Serial.print(", ");
+    Serial.print(iostream.outputMessage.gaugeTwoReading);
+    Serial.print(", ");
+    Serial.print(iostream.outputMessage.gaugeThreeReading);
+    Serial.print(")\n");
+
+    // print settings
+    Serial.print("is target reached ");
+    Serial.println(targetReached);
+    Serial.print("power saving ");
+    Serial.println(powerSaving);
+    Serial.print("disabled ");
+    Serial.println(disabled);
+    Serial.print("debug ");
+    Serial.println(debug);
+
+    Serial.print("--- end ---\n\n");
 }

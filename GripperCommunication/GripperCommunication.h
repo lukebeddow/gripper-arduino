@@ -3,6 +3,11 @@
 class GripperCommunication
 {
 public:
+
+	/* note that only commandBytes and setSpeedByte are set up to save x,y,z data
+	from the input message, ALL others do not save this data */
+
+
 	// define bytes for communication instructions
 	static constexpr byte motorCommandByte_m = 100;
 	static constexpr byte motorCommandByte_mm = 101;
@@ -19,6 +24,10 @@ public:
 	static constexpr byte powerSavingOffByte = 112;
 	static constexpr byte stopByte = 113;
 	static constexpr byte resumeByte = 114;
+	static constexpr byte setSpeedByte = 115;
+	static constexpr byte debugOnByte = 116;
+	static constexpr byte debugOffByte = 117;
+	static constexpr byte printByte = 118;
 
 	// information bytes and error codes
 	static constexpr byte messageReceivedByte = 200;
@@ -33,7 +42,7 @@ public:
 	static constexpr byte endMarkerByte = 255;
 
 	// how long is the message signature at each of the start and end
-	static constexpr byte startEndSize = 2;
+	static constexpr byte startEndSize = 3;
 
 	// functions
 	GripperCommunication();
@@ -46,10 +55,6 @@ public:
 		float x;
 		float y;
 		float z;
-		// byte speedX;
-		// byte speedY;
-		// byte speedZ;
-
 	};
 	InputMessage inputMessage;
 

@@ -89,16 +89,15 @@ bool GripperCommunication::readInput()
 		inputUnion.byteArray[i] = _inputBuffer[i];
 	}
 
-	// extract the raw data
-	inputMessage.instructionByte = inputUnion.structure.instructionByte;
+	/* for single byte messages, _dataReceivedCount is 1,
+		 for x,y,z messages, _dataReceivedCount is 13
+		 It currently works without checking for this */
 
-	// if a command has been sent, there will be more data
-	if (inputUnion.structure.instructionByte >= commandByteMinimum and
-			inputUnion.structure.instructionByte <= commandByteMaximum) {
-		inputMessage.x = inputUnion.structure.x;
-		inputMessage.y = inputUnion.structure.y;
-		inputMessage.z = inputUnion.structure.z;
-	}
+	// extract the raw data, it is fine if we get garbage for x,y,z
+	inputMessage.instructionByte = inputUnion.structure.instructionByte;
+	inputMessage.x = inputUnion.structure.x;
+	inputMessage.y = inputUnion.structure.y;
+	inputMessage.z = inputUnion.structure.z;
 
 	// now reset all variables before a new message comes in
 	_inputSuccess == false;

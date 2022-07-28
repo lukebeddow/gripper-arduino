@@ -91,7 +91,7 @@ private:
     struct Control {
         /* This structure contains control commands used by the gripper */
 
-        // input speeds
+        // speed the motors will currently turn
         struct Rpm {
             float x;
             float y;
@@ -187,6 +187,13 @@ private:
         float z;
     } mmPerStep;
 
+    // what speed has been set, default to max speed
+    struct {
+        float x;
+        float y;
+        float z;
+    } setSpeed;
+
     int operatingMode;
     bool targetReached;
 
@@ -199,6 +206,7 @@ private:
 public:
     bool powerSaving;           // motors are turned off when not moving
     bool disabled;              // motors are prevented from moving
+    bool debug;                 // print debug messages in Serial
 
     /* ----- Public Functions ----- */
 public:
@@ -210,6 +218,7 @@ public:
     void publishOutput();
     void runMotors(const int loopMillis);
     void smoothRun(int cycleTime_ms);
+    void print();
 
     /* ----- Private Functions ----- */
 private:
@@ -220,6 +229,7 @@ private:
     void readGauge(const int gauge_num);
     bool checkSerial();
     void setHomeTarget();
+    void setSpeedTarget();
     void setMessageTarget();
     void motorEnable(bool is_enabled);
 };
