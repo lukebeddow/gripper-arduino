@@ -10,7 +10,6 @@ The arudino pins for I/O are defined in ```Gripper_v2/pin_definitions.h```. The 
 To use the gripper class, upload the following sketch to the arudino:
 
 ```c++
-
 #include <Gripper_v2.h>
 
 /* the following arduino libraries are required for Gripper_v2.h:
@@ -22,21 +21,26 @@ To use the gripper class, upload the following sketch to the arudino:
 Gripper mygripper;
 
 void setup() {
+  // put your setup code here, to run once:
 
-  // non-interruptible homing sequence, required to calibrate motors
+  // non-interruptible homing, required to zero motor step counts
   mygripper.homingSequence();
+  
+  mygripper.powerSaving = true; // motors turn off when stationary
+  mygripper.disabled = false;   // false by default, true prevents motion
 
-  // connection with computer via usb, optional but useful for debugging
-  Serial.begin(9600);
-  
-  // setup serial connection, Serial2 is hardcoded in GripperCommunication as a global
-  Serial2.begin(115200);
-  
+  // optional usb connection, USBSERIAL is defined as Serial in GripperCommunication.h
+  USBSERIAL.begin(9600);
+
+  // required bluetooth connection, BTSERIAL is defined as Serial2 in GripperCommunication.h
+  BTSERIAL.begin(115200);
+
 }
 
 void loop() {
+  // put your main code here, to run repeatedly:
 
-  // run smoothed cycles (minimise noise) for 20ms each
+  // run the motors and communications for cycles of 20 milliseconds
   mygripper.smoothRun(20);
   
 }
@@ -54,14 +58,3 @@ Rather than use smoothRun, the gripper can also be run using:
   // run the motors for a cycle of 20ms
   mygripper.runMotors(20);
 ```
-Finally, the gripper can be put into power saving mode, or disabled - which means the motors cannot move but other functions (I/O) continues:
-
-```c++
-
-  // motors are switched off when not moving
-  mygripper.powerSaving = true;
-  
-  // motors are prevented from moving
-  mygripper.disabled = true
-```
-
