@@ -12,6 +12,7 @@ Gripper::Gripper()
     gauge1.begin(SG1_dt, SG1_sck);
     gauge2.begin(SG2_dt, SG2_sck);
     gauge3.begin(SG3_dt, SG3_sck);
+    gauge4.begin(SG4_dt, SG4_sck);
 
     // do we apply a scaling and offset here? not currently
     // gauge1.set_scale(loadcell_divider);
@@ -23,16 +24,65 @@ Gripper::Gripper()
     newReadGauge1 = false;
     newReadGauge2 = false;
     newReadGauge3 = false;
+    newReadGauge4 = false;
 
     // default optional parameters
     powerSaving = true;
     disabled = false;
-    debug = false;
+    debug = true;
 
     // speed defaults
     setSpeed.x = m.maxSpeed.x;
     setSpeed.y = m.maxSpeed.y;
     setSpeed.z = m.maxSpeed.z;
+
+    // this code is redundant I think
+    in_use.gauge1 = true;
+    in_use.gauge2 = true;
+    in_use.gauge3 = true;
+    in_use.gauge4 = true;
+    // waitGauge();
+}
+
+void Gripper::waitGauge()
+{
+    unsigned long timeout_ms = 20;
+    unsigned long delay_ms = 2;
+    unsigned long start_ms = millis();
+
+    // USBSERIAL.begin(9600);
+
+    int loops = timeout_ms / delay_ms;
+
+    // while (millis() - start_ms < timeout_ms) {
+    for (int i = 0; i < loops; i++) {
+
+        // USBSERIAL.print("loop ");
+        // USBSERIAL.println(i);
+
+        if (not in_use.gauge1) {
+            in_use.gauge1 = gauge1.is_ready();
+        }
+
+        if (not in_use.gauge2) {
+            in_use.gauge2 = gauge2.is_ready();
+        }
+
+        if (not in_use.gauge3) {
+            in_use.gauge3 = gauge3.is_ready();
+        }
+
+        if (not in_use.gauge4) {
+            in_use.gauge4 = gauge4.is_ready();
+        }
+
+        // delay(delay_ms);
+
+    }
+
+    // print();
+
+    return;
 }
 
 void Gripper::setupMotors()
@@ -228,7 +278,7 @@ void Gripper::setHomeTarget()
     /* This function prepares for homing, afterwards runMotors should be used */
 
     if (debug) {
-        Serial.print("Setting home target\n");
+        USBSERIAL.print("Setting home target\n");
     }
 
     // in case a previous homing sequence was interrupted
@@ -249,13 +299,13 @@ void Gripper::setSpeedTarget()
     /* save a speed target */
 
     if (debug) {
-        Serial.print("Incoming speed request (x, y, z) of: (");
-        Serial.print(iostream.inputMessage.x);
-        Serial.print(", ");
-        Serial.print(iostream.inputMessage.y);
-        Serial.print(", ");
-        Serial.print(iostream.inputMessage.z);
-        Serial.print(")\n");
+        USBSERIAL.print("Incoming speed request (x, y, z) of: (");
+        USBSERIAL.print(iostream.inputMessage.x);
+        USBSERIAL.print(", ");
+        USBSERIAL.print(iostream.inputMessage.y);
+        USBSERIAL.print(", ");
+        USBSERIAL.print(iostream.inputMessage.z);
+        USBSERIAL.print(")\n");
     }
 
     setSpeed.x = iostream.inputMessage.x;
@@ -273,13 +323,13 @@ void Gripper::setSpeedTarget()
     if (setSpeed.z > m.maxSpeed.z) setSpeed.z = m.maxSpeed.z;
 
     if (debug) {
-        Serial.print("Speed target (x, y, z) set: (");
-        Serial.print(setSpeed.x);
-        Serial.print(", ");
-        Serial.print(setSpeed.y);
-        Serial.print(", ");
-        Serial.print(setSpeed.z);
-        Serial.print(")\n");
+        USBSERIAL.print("Speed target (x, y, z) set: (");
+        USBSERIAL.print(setSpeed.x);
+        USBSERIAL.print(", ");
+        USBSERIAL.print(setSpeed.y);
+        USBSERIAL.print(", ");
+        USBSERIAL.print(setSpeed.z);
+        USBSERIAL.print(")\n");
     }
 }
 
@@ -293,32 +343,32 @@ void Gripper::setMessageTarget()
 
     // convert the input message to millimeter motor positions
     if (iostream.inputMessage.instructionByte == iostream.motorCommandByte_m) {
-        if (debug) { Serial.print("Received motor command m\n"); }
+        if (debug) { USBSERIAL.print("Received motor command m\n"); }
         x_mm = iostream.inputMessage.x * 1e3;
         y_mm = iostream.inputMessage.y * 1e3;
         z_mm = iostream.inputMessage.z * 1e3;
     }
     else if (iostream.inputMessage.instructionByte == iostream.motorCommandByte_mm) {
-        if (debug) { Serial.print("Received motor command mm\n"); }
+        if (debug) { USBSERIAL.print("Received motor command mm\n"); }
         x_mm = iostream.inputMessage.x;
         y_mm = iostream.inputMessage.y;
         z_mm = iostream.inputMessage.z;
     }
     else if (iostream.inputMessage.instructionByte == iostream.jointCommandByte_m_rad) {
-        if (debug) { Serial.print("Received motor command m rad\n"); }
+        if (debug) { USBSERIAL.print("Received motor command m rad\n"); }
         x_mm = iostream.inputMessage.x * 1e3;
         y_mm = x_mm - params.screwDistance_xy * sin(iostream.inputMessage.y);
         z_mm = iostream.inputMessage.z * 1e3;
     }
     else if (iostream.inputMessage.instructionByte == iostream.jointCommandByte_mm_deg) {
-        if (debug) { Serial.print("Received motor command mm deg\n"); }
+        if (debug) { USBSERIAL.print("Received motor command mm deg\n"); }
         constexpr float to_rad = 3.141592654 / 180.0;
         x_mm = iostream.inputMessage.x;
         y_mm = x_mm - params.screwDistance_xy * sin(iostream.inputMessage.y * to_rad);
         z_mm = iostream.inputMessage.z;
     }
     else if (iostream.inputMessage.instructionByte == iostream.stepCommandByte) {
-        if (debug) { Serial.print("Received motor command step\n"); }
+        if (debug) { USBSERIAL.print("Received motor command step\n"); }
         control.stepTarget.x = iostream.inputMessage.x;
         control.stepTarget.y = iostream.inputMessage.y;
         control.stepTarget.z = iostream.inputMessage.z;
@@ -330,15 +380,26 @@ void Gripper::setMessageTarget()
     }
 
     if (debug) {
-        Serial.print("x_mm is "); Serial.println(x_mm);
-        Serial.print("y_mm is "); Serial.println(y_mm);
-        Serial.print("z_mm is "); Serial.println(z_mm);
+        USBSERIAL.print("x_mm is "); USBSERIAL.println(x_mm);
+        USBSERIAL.print("y_mm is "); USBSERIAL.println(y_mm);
+        USBSERIAL.print("z_mm is "); USBSERIAL.println(z_mm);
     }
 
     // calculate target revolutions for each motor
     float revs_x = (params.home.x + x_mm * params.direction.x) / params.mmPerRev.x;
     float revs_y = (params.home.y + y_mm * params.direction.y) / params.mmPerRev.y;
     float revs_z = (params.home.z + z_mm * params.direction.z) / params.mmPerRev.z;
+
+    // check the target revolutions are not exceeding our limits
+    if (revs_x < 0 or revs_x > m.limitRevs.x or
+        revs_y < 0 or revs_y > m.limitRevs.y or
+        revs_z < 0 or revs_z > m.limitRevs.z) {
+        if (debug) {
+            USBSERIAL.println("Revs limit exeeded, abort");
+        }
+        return;
+    }
+    
     
     // convert target revolutions to target steps
     control.stepTarget.x = revs_x * m.stepsPerRev * m.microstep.x;
@@ -372,21 +433,43 @@ void Gripper::readGauge(const int gauge_num)
 
     switch (gauge_num) {
     case 1:
-        if (gauge1.is_ready()) {
+        if (not in_use.gauge1) {
+            iostream.outputMessage.gaugeOneReading = 0;
+            newReadGauge1 = true;
+        }
+        else if (gauge1.is_ready()) {
             iostream.outputMessage.gaugeOneReading = gauge1.read();
             newReadGauge1 = true;
         }
         break;
     case 2:
-        if (gauge2.is_ready()) {
+        if (not in_use.gauge2) {
+            iostream.outputMessage.gaugeTwoReading = 0;
+            newReadGauge2 = true;
+        }
+        else if (gauge2.is_ready()) {
             iostream.outputMessage.gaugeTwoReading = gauge2.read();
             newReadGauge2 = true;
         }
         break;
     case 3:
-        if (gauge3.is_ready()) {
+        if (not in_use.gauge3) {
+            iostream.outputMessage.gaugeThreeReading = 0;
+            newReadGauge3 = true;
+        }
+        else if (gauge3.is_ready()) {
             iostream.outputMessage.gaugeThreeReading = gauge3.read();
             newReadGauge3 = true;
+        }
+        break;
+    case 4:
+        if (not in_use.gauge4) {
+            iostream.outputMessage.gaugeFourReading = 0;
+            newReadGauge4 = true;
+        }
+        else if (gauge4.is_ready()) {
+            iostream.outputMessage.gaugeFourReading = gauge4.read();
+            newReadGauge4 = true;
         }
         break;
     }
@@ -394,24 +477,36 @@ void Gripper::readGauge(const int gauge_num)
 
 void Gripper::readGauges()
 {
-    /* Read all three gauges */
+    /* Read all gauges one after the other*/
 
     readGauge(1);
     readGauge(2);
     readGauge(3);
+    readGauge(4);
 }
 
 bool Gripper::checkSerial()
 {
     /* This function checks to see if there is an incoming serial message */
 
-    if (Serial2.available() > 0) {
+    if (debug) {
+        if (USBSERIAL.available() > 0) {
+            byte x = USBSERIAL.read();
+
+            // print diagnostic information
+            if (x == 'p') {
+                print();
+            }
+        }
+    }
+
+    if (BTSERIAL.available() > 0) {
         // read any input bytes, see if we received a message
         if (iostream.readInput()) {
 
             if (debug) {
-                Serial.print("Received message, instruction byte is ");
-                Serial.println(iostream.inputMessage.instructionByte);
+                USBSERIAL.print("Received message, instruction byte is ");
+                USBSERIAL.println(iostream.inputMessage.instructionByte);
             }
 
             // have we received a position command message
@@ -427,21 +522,21 @@ bool Gripper::checkSerial()
                     setHomeTarget();
                     break;
                 case iostream.powerSavingOnByte:
-                    if (debug) { Serial.print("Power saving set to true\n"); }
+                    if (debug) { USBSERIAL.print("Power saving set to true\n"); }
                     powerSaving = true;
                     break;
                 case iostream.powerSavingOffByte:
-                    if (debug) { Serial.print("Power saving set to false\n"); }
+                    if (debug) { USBSERIAL.print("Power saving set to false\n"); }
                     if (!disabled) motorEnable(true);
                     powerSaving = false;
                     break;
                 case iostream.stopByte:
-                    if (debug) { Serial.print("Disabled set to true\n"); }
+                    if (debug) { USBSERIAL.print("Disabled set to true\n"); }
                     motorEnable(false);
                     disabled = true;
                     break;
                 case iostream.resumeByte:
-                    if (debug) { Serial.print("Disabled set to false\n"); }
+                    if (debug) { USBSERIAL.print("Disabled set to false\n"); }
                     motorEnable(true);
                     disabled = false;
                     break;
@@ -449,11 +544,11 @@ bool Gripper::checkSerial()
                     setSpeedTarget();
                     break;
                 case iostream.debugOnByte:
-                    Serial.print("Debug set to true\n");
+                    USBSERIAL.print("Debug set to true\n");
                     debug = true;
                     break;
                 case iostream.debugOffByte:
-                    Serial.print("Debug set to false\n");
+                    USBSERIAL.print("Debug set to false\n");
                     debug = false;
                     break;
                 case iostream.printByte:
@@ -604,6 +699,7 @@ void Gripper::sendErrorMessage(byte error_code)
 	iostream.outputMessage.gaugeOneReading = 0;
 	iostream.outputMessage.gaugeTwoReading = 0;
 	iostream.outputMessage.gaugeThreeReading = 0;
+    iostream.outputMessage.gaugeFourReading = 0;
 	iostream.outputMessage.motorX_mm = -1;
 	iostream.outputMessage.motorY_mm = -1;
 	iostream.outputMessage.motorZ_mm = -1;
@@ -617,9 +713,10 @@ void Gripper::publishOutput()
     so it publishes it */
 
     // check if all the gauges have new data to publish
-    if (newReadGauge1 and newReadGauge2 and newReadGauge3) {
+    if (newReadGauge1 and newReadGauge2 and newReadGauge3 and newReadGauge4) {
 
         // fill data into the output message
+        iostream.outputMessage.informationByte = 0;
         iostream.outputMessage.isTargetReached = targetReached;
         setMotorPositions();
 
@@ -630,6 +727,7 @@ void Gripper::publishOutput()
         newReadGauge1 = false;
         newReadGauge2 = false;
         newReadGauge3 = false;
+        newReadGauge4 = false;
     }
 }
 
@@ -644,18 +742,24 @@ void Gripper::smoothRun(int cycleTime_ms)
             3. readGauge(1);
             4. readGauge(2);
             5. readGauge(3);
-            6. publishOutput();
+            6. readGauge(4);
+            7. publishOutput();
     */
 
     unsigned long startTime_us = micros();
 
-    constexpr int numTasks = 6;
+    constexpr int numTasks = 7;
     constexpr int minTaskTime_ms = 2;       // milliseconds
     constexpr int minRunPadding_ms = 2;     // milliseconds
 
     // enforce a minimum cycle time
     if (cycleTime_ms < minTaskTime_ms * numTasks + minRunPadding_ms) {
         cycleTime_ms = minTaskTime_ms * numTasks + minRunPadding_ms;
+
+        if (debug) {
+            USBSERIAL.print("Cycle time increased to ");
+            USBSERIAL.println(cycleTime_ms);
+        }
     }
 
     // calculate time for regular tasks
@@ -677,6 +781,9 @@ void Gripper::smoothRun(int cycleTime_ms)
     readGauge(3);
     runMotors(taskTime);
 
+    readGauge(4);
+    runMotors(taskTime);
+
     publishOutput();
     runMotors(taskTime);
 
@@ -689,7 +796,7 @@ void Gripper::smoothRun(int cycleTime_ms)
         runMotors(remainingTime_ms);
     }
     else if (debug) {
-        Serial.print("Cycle time exceeded\n");
+        USBSERIAL.print("Cycle time exceeded\n");
     }
     
 }
@@ -698,53 +805,62 @@ void Gripper::print()
 {
     /* print information to Serial terminal */
 
-    Serial.print("\n--- start print ---\n");
+    USBSERIAL.print("\n--- start print ---\n");
 
     // print motor step position
-    Serial.print("Current motor steps (x, y, z): (");
-    Serial.print(motorX.getStep());
-    Serial.print(", ");
-    Serial.print(motorY.getStep());
-    Serial.print(", ");
-    Serial.print(motorZ.getStep());
-    Serial.print(")\n");
+    USBSERIAL.print("Current motor steps (x, y, z): (");
+    USBSERIAL.print(motorX.getStep());
+    USBSERIAL.print(", ");
+    USBSERIAL.print(motorY.getStep());
+    USBSERIAL.print(", ");
+    USBSERIAL.print(motorZ.getStep());
+    USBSERIAL.print(")\n");
 
     // print motor joint state
-    Serial.print("Joint positions (x, th, z): (");
-    Serial.print(params.home.x + (mmPerStep.x * motorX.getStep()));
-    Serial.print(", ");
-    Serial.print(params.home.y + (mmPerStep.y * motorY.getStep()));
-    Serial.print(", ");
-    Serial.print(params.home.z + (mmPerStep.z * motorZ.getStep()));
-    Serial.print(")\n");
+    USBSERIAL.print("Joint positions (x, th, z): (");
+    USBSERIAL.print(params.home.x + (mmPerStep.x * motorX.getStep()));
+    USBSERIAL.print(", ");
+    USBSERIAL.print(params.home.y + (mmPerStep.y * motorY.getStep()));
+    USBSERIAL.print(", ");
+    USBSERIAL.print(params.home.z + (mmPerStep.z * motorZ.getStep()));
+    USBSERIAL.print(")\n");
 
     // print motor set speeds
-    Serial.print("Motor speed settings (x, y, z): (");
-    Serial.print(setSpeed.x);
-    Serial.print(", ");
-    Serial.print(setSpeed.y);
-    Serial.print(", ");
-    Serial.print(setSpeed.z);
-    Serial.print(")\n");
+    USBSERIAL.print("Motor speed settings (x, y, z): (");
+    USBSERIAL.print(setSpeed.x);
+    USBSERIAL.print(", ");
+    USBSERIAL.print(setSpeed.y);
+    USBSERIAL.print(", ");
+    USBSERIAL.print(setSpeed.z);
+    USBSERIAL.print(")\n");
+
+    // print gauge use
+    USBSERIAL.print("Gauge use is: ");
+    USBSERIAL.print(in_use.gauge1);
+    USBSERIAL.print(in_use.gauge2);
+    USBSERIAL.print(in_use.gauge3);
+    USBSERIAL.println(in_use.gauge4);
 
     // print last gauge readings
-    Serial.print("The last gauge readings were (g1, g2, g3): (");
-    Serial.print(iostream.outputMessage.gaugeOneReading);
-    Serial.print(", ");
-    Serial.print(iostream.outputMessage.gaugeTwoReading);
-    Serial.print(", ");
-    Serial.print(iostream.outputMessage.gaugeThreeReading);
-    Serial.print(")\n");
+    USBSERIAL.print("The last gauge readings were (g1, g2, g3, g4): (");
+    USBSERIAL.print(iostream.outputMessage.gaugeOneReading);
+    USBSERIAL.print(", ");
+    USBSERIAL.print(iostream.outputMessage.gaugeTwoReading);
+    USBSERIAL.print(", ");
+    USBSERIAL.print(iostream.outputMessage.gaugeThreeReading);
+    USBSERIAL.print(", ");
+    USBSERIAL.print(iostream.outputMessage.gaugeFourReading);
+    USBSERIAL.print(")\n");
 
     // print settings
-    Serial.print("is target reached ");
-    Serial.println(targetReached);
-    Serial.print("power saving ");
-    Serial.println(powerSaving);
-    Serial.print("disabled ");
-    Serial.println(disabled);
-    Serial.print("debug ");
-    Serial.println(debug);
+    USBSERIAL.print("is target reached ");
+    USBSERIAL.println(targetReached);
+    USBSERIAL.print("power saving ");
+    USBSERIAL.println(powerSaving);
+    USBSERIAL.print("disabled ");
+    USBSERIAL.println(disabled);
+    USBSERIAL.print("debug ");
+    USBSERIAL.println(debug);
 
-    Serial.print("--- end ---\n\n");
+    USBSERIAL.print("--- end ---\n\n");
 }

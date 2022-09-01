@@ -6,7 +6,7 @@
 #include <HX711.h>					// external library for HX711 chip
 
 // define pins
-#include "pin_definitions.h"
+#include "pin_definitions_pcb.h"
 
 // define the gripper class
 class Gripper
@@ -176,6 +176,7 @@ private:
     HX711 gauge1;
     HX711 gauge2;
     HX711 gauge3;
+    HX711 gauge4;
 
     // create input/output stream
     GripperCommunication iostream;
@@ -201,6 +202,14 @@ private:
     bool newReadGauge1;
     bool newReadGauge2;
     bool newReadGauge3;
+    bool newReadGauge4;
+
+    struct {
+        bool gauge1;
+        bool gauge2;
+        bool gauge3;
+        bool gauge4;
+    } in_use;
 
     /* ----- Public variables ----- */
 public:
@@ -211,6 +220,7 @@ public:
     /* ----- Public Functions ----- */
 public:
     Gripper();
+    void waitGauge();
     void homingSequence();
     void readGauges();
     void checkInputs();

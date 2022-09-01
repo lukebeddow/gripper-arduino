@@ -1,5 +1,8 @@
 #pragma once
 
+#define BTSERIAL Serial2
+#define USBSERIAL Serial
+
 class GripperCommunication
 {
 public:
@@ -73,9 +76,18 @@ public:
 		long gaugeOneReading;
 		long gaugeTwoReading;
 		long gaugeThreeReading;
+		long gaugeFourReading;
 		float motorX_mm;
 		float motorY_mm;
 		float motorZ_mm;
+		// long test1;
+		// long test2;
+		// long test3;
+		// long test4;
+		// long test5;
+		// long test6;
+		// long test7;
+		// long test8;
 	};
 	OutputMessage outputMessage;
 

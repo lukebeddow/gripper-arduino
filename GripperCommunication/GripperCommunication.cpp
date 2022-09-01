@@ -18,6 +18,7 @@ GripperCommunication::GripperCommunication()
 	outputMessage.gaugeOneReading = 0;
 	outputMessage.gaugeTwoReading = 0;
 	outputMessage.gaugeThreeReading = 0;
+	outputMessage.gaugeFourReading = 0;
 	outputMessage.motorX_mm = -1;
 	outputMessage.motorY_mm = -1;
 	outputMessage.motorZ_mm = -1;
@@ -31,10 +32,10 @@ bool GripperCommunication::readInput()
 
 	_inputSuccess = false;
 
-	while (Serial2.available() > 0) {
+	while (BTSERIAL.available() > 0) {
 
 		// extract the next byte from the serial buffer
-		byte x = Serial2.read();
+		byte x = BTSERIAL.read();
 
 		// are we in the middle of reading a message
 		if (_inputInProgress) {
@@ -117,22 +118,30 @@ void GripperCommunication::publishOutput()
 	outputUnion.structure.gaugeOneReading = outputMessage.gaugeOneReading;
 	outputUnion.structure.gaugeTwoReading = outputMessage.gaugeTwoReading;
 	outputUnion.structure.gaugeThreeReading = outputMessage.gaugeThreeReading;
+	outputUnion.structure.gaugeFourReading = outputMessage.gaugeFourReading;
 	outputUnion.structure.motorX_mm = outputMessage.motorX_mm;
 	outputUnion.structure.motorY_mm = outputMessage.motorY_mm;
 	outputUnion.structure.motorZ_mm = outputMessage.motorZ_mm;
 
 	// begin the message with the start marker
+	int j = 0;
 	for (int i = 0; i < startEndSize; i++) {
-		Serial2.write(startMarkerByte);
+		BTSERIAL.write(startMarkerByte);
+	}
+	
+	for (int i = 0; i < outputDataSize; i++) {
+		BTSERIAL.write(outputUnion.byteArray[i]);
 	}
 
-	// loop through sending the entire byte array
-	for (byte x : outputUnion.byteArray) {
-		Serial2.write(x);
-	}
+	// temporary fix, write a 0 before end markers
+	/* the problem is actually that the gripper internal tracking of x/y/z goes
+	to infinity and nan and this sets the last bit to 255 hence it interfered
+	with the end marker bytes. A system of start/end markers which went for example
+	253,254,255 would be immune from this problem */
+	BTSERIAL.write(0);
 
 	// finish the message with the end marker
 	for (int i = 0; i < startEndSize; i++) {
-		Serial2.write(endMarkerByte);
+		BTSERIAL.write(endMarkerByte);
 	}
 }
