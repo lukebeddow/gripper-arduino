@@ -1,7 +1,17 @@
 #pragma once
 
-#define BTSERIAL Serial2
-#define USBSERIAL Serial
+// are we wired or wireless (bluetooth)
+#define LUKE_WIRELESS 0
+
+#if LUKE_WIRELESS
+  // bluetooth is connected to Serial2 for wireless coms
+  #define BTSERIAL Serial2
+  #define USBSERIAL Serial // for debugging
+#else
+  // if wired then our 'bluetooth' is actually wired Serial
+  #define BTSERIAL Serial
+  #define USBSERIAL Serial2 // not useable
+#endif
 
 class GripperCommunication
 {
@@ -9,7 +19,6 @@ public:
 
 	/* note that only commandBytes and setSpeedByte are set up to save x,y,z data
 	from the input message, ALL others do not save this data */
-
 
 	// define bytes for communication instructions
 	static constexpr byte motorCommandByte_m = 100;
