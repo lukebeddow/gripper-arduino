@@ -15,7 +15,7 @@ To use the gripper class, upload the following sketch to the arudino:
 /* the following arduino libraries are required for Gripper_v2.h:
     #include <GripperCommunication.h>
     #include <StepperObj.h>
-    #include <HX711.h>
+    #include <HX711.h> // https://www.arduino.cc/reference/en/libraries/hx711-arduino-library/
 */
 
 Gripper mygripper;
