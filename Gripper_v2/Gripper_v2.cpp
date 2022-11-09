@@ -20,7 +20,7 @@ Gripper::Gripper()
 
     // set flags to defaults (0=joystick, 1=serial)
     operatingMode = 1;
-    targetReached = true;
+    targetReached.all = true;
     newReadGauge1 = false;
     newReadGauge2 = false;
     newReadGauge3 = false;
@@ -114,15 +114,15 @@ void Gripper::setupMotors()
     motorY.setClockwise(m.clockwise.y);
     motorZ.setClockwise(m.clockwise.z);
 
-    // calculate the mm per step parameters, this is never updated afterwards!
-    mmPerStep.x = params.mmPerRev.x / (m.stepsPerRev * m.microstep.x);
-    mmPerStep.y = params.mmPerRev.y / (m.stepsPerRev * m.microstep.y);
-    mmPerStep.z = params.mmPerRev.z / (m.stepsPerRev * m.microstep.z);
+    // // calculate the mm per step parameters, this is never updated afterwards!
+    // mmPerStep.x = params.mmPerRev.x / (m.stepsPerRev * m.microstep.x);
+    // mmPerStep.y = params.mmPerRev.y / (m.stepsPerRev * m.microstep.y);
+    // mmPerStep.z = params.mmPerRev.z / (m.stepsPerRev * m.microstep.z);
 
-    // adjust whether we gain +ve or -ve position from a step increase
-    mmPerStep.x *= params.direction.x;
-    mmPerStep.y *= params.direction.y;
-    mmPerStep.z *= params.direction.z;
+    // // adjust whether we gain +ve or -ve position from a step increase
+    // mmPerStep.x *= params.direction.x;
+    // mmPerStep.y *= params.direction.y;
+    // mmPerStep.z *= params.direction.z;
 }
 
 void Gripper::setPins()
@@ -187,22 +187,27 @@ bool Gripper::readJoystick()
         // we are not in joystick mode
         if (operatingMode == 0) {
             operatingMode = 1;
-            targetReached = false;
-            m.targetReached.x = false;
-            m.targetReached.y = false;
-            m.targetReached.z = false;
+            targetReached.all = false;
+            targetReached.x = false;
+            targetReached.y = false;
+            targetReached.z = false;
         }
         return false;
     }
 
     // are we within a homing sequence? Do not interrupt
-    if (operatingMode == 2 and not targetReached) {
+    if (operatingMode == 2 and not targetReached.all) {
         return false;
     }
 
     // otherwise, the joystick is connected and enabled
     operatingMode = 0;
-    disabled = false;
+
+    // joystick overrides disabled signal
+    if (disabled) {
+        disabled = false;
+        motorEnable(true);
+    }
 
     // joystick button triggers homing sequence
     if (digitalRead(joystick_push) == LOW) {
@@ -267,10 +272,10 @@ void Gripper::homingSequence()
         if (not z_homed) z_homed = motorZ.homePulse();
     }
 
-    targetReached = true;
-    m.targetReached.x = x_homed;
-    m.targetReached.y = y_homed;
-    m.targetReached.z = z_homed;
+    targetReached.all = true;
+    targetReached.x = x_homed;
+    targetReached.y = y_homed;
+    targetReached.z = z_homed;
 }
 
 void Gripper::setHomeTarget()
@@ -288,10 +293,10 @@ void Gripper::setHomeTarget()
     
     // set gripper parameters for homing mode
     operatingMode = 2;
-    m.targetReached.x = false;
-    m.targetReached.y = false;
-    m.targetReached.z = false;
-    targetReached = false;
+    targetReached.x = false;
+    targetReached.y = false;
+    targetReached.z = false;
+    targetReached.all = false;
 }
 
 void Gripper::setSpeedTarget()
@@ -367,13 +372,13 @@ void Gripper::setMessageTarget()
         y_mm = x_mm - params.screwDistance_xy * sin(iostream.inputMessage.y * to_rad);
         z_mm = iostream.inputMessage.z;
     }
-    else if (iostream.inputMessage.instructionByte == iostream.stepCommandByte) {
-        if (debug) { USBSERIAL.print("Received motor command step\n"); }
-        control.stepTarget.x = iostream.inputMessage.x;
-        control.stepTarget.y = iostream.inputMessage.y;
-        control.stepTarget.z = iostream.inputMessage.z;
-        goto GOTO_after_step_set;
-    }
+    // else if (iostream.inputMessage.instructionByte == iostream.stepCommandByte) {
+    //     if (debug) { USBSERIAL.print("Received motor command step\n"); }
+    //     control.stepTarget.x = iostream.inputMessage.x;
+    //     control.stepTarget.y = iostream.inputMessage.y;
+    //     control.stepTarget.z = iostream.inputMessage.z;
+    //     goto GOTO_after_step_set;
+    // }
     else {
         sendErrorMessage(iostream.invalidCommandByte);
         return;
@@ -400,13 +405,12 @@ void Gripper::setMessageTarget()
         return;
     }
     
-    
     // convert target revolutions to target steps
     control.stepTarget.x = revs_x * m.stepsPerRev * m.microstep.x;
     control.stepTarget.y = revs_y * m.stepsPerRev * m.microstep.y;
     control.stepTarget.z = revs_z * m.stepsPerRev * m.microstep.z;
 
-GOTO_after_step_set:
+// GOTO_after_step_set:
 
     // set motor speeds
     motorX.setRPM(setSpeed.x);
@@ -419,10 +423,10 @@ GOTO_after_step_set:
     motorZ.setTarget(control.stepTarget.z);
 
     // reset target booleans
-    targetReached = false;
-    m.targetReached.x = false;
-    m.targetReached.y = false;
-    m.targetReached.z = false;
+    targetReached.all = false;
+    targetReached.x = false;
+    targetReached.y = false;
+    targetReached.z = false;
 
     operatingMode = 1;
 }
@@ -596,39 +600,39 @@ void Gripper::runMotors(const int loopMillis)
         }
 
         // default for joystick mode
-        targetReached = false;
+        targetReached.all = false;
     }
     // serial input target position mode
     else if (operatingMode == 1) {
         
         if (powerSaving) {
-            motorEnable(not targetReached);
+            motorEnable(not targetReached.all);
         }
 
         while ((millis() - loopStartMillis) < loopMillis) {
-            m.targetReached.x = motorX.targetPulse();
-            m.targetReached.y = motorY.targetPulse();
-            m.targetReached.z = motorZ.targetPulse();
+            targetReached.x = motorX.targetPulse();
+            targetReached.y = motorY.targetPulse();
+            targetReached.z = motorZ.targetPulse();
         }
 
         // check if the target has been reached
-        if (m.targetReached.x and
-            m.targetReached.y and
-            m.targetReached.z) {
-            targetReached = true;
+        if (targetReached.x and
+            targetReached.y and
+            targetReached.z) {
+            targetReached.all = true;
         }
     }
     // homing mode
     else if (operatingMode == 2) {
 
         if (powerSaving) {
-            motorEnable(not targetReached);
+            motorEnable(not targetReached.all);
         }
 
         // which motors do we need to home
-        bool x_homed = not m.inUse.x or m.targetReached.x;
-        bool y_homed = not m.inUse.y or m.targetReached.y;
-        bool z_homed = not m.inUse.z or m.targetReached.z;
+        bool x_homed = not m.inUse.x or targetReached.x;
+        bool y_homed = not m.inUse.y or targetReached.y;
+        bool z_homed = not m.inUse.z or targetReached.z;
 
         while ((millis() - loopStartMillis) < loopMillis) {
             // home pulse only if the motor is not yet homed
@@ -638,16 +642,16 @@ void Gripper::runMotors(const int loopMillis)
         }
 
         // update if we have reached our target
-        m.targetReached.x = x_homed;
-        m.targetReached.y = y_homed;
-        m.targetReached.z = z_homed;
+        targetReached.x = x_homed;
+        targetReached.y = y_homed;
+        targetReached.z = z_homed;
 
         // when we reach our target, end the homing
         // might be able to remove this...TEST IT!
-        if (m.targetReached.x and
-            m.targetReached.y and
-            m.targetReached.z) {
-            targetReached = true;
+        if (targetReached.x and
+            targetReached.y and
+            targetReached.z) {
+            targetReached.all = true;
             operatingMode = 1;
         }
     }
@@ -671,11 +675,11 @@ void Gripper::setMotorPositions()
     /* This function sets the motor positions for the output message */
 
     iostream.outputMessage.motorX_mm = 
-        params.home.x + (mmPerStep.x * motorX.getStep());
+        params.home.x + (params.mmPerStep.x * motorX.getStep());
     iostream.outputMessage.motorY_mm = 
-        params.home.y + (mmPerStep.y * motorY.getStep());
+        params.home.y + (params.mmPerStep.y * motorY.getStep());
     iostream.outputMessage.motorZ_mm = 
-        params.home.z + (mmPerStep.z * motorZ.getStep());
+        params.home.z + (params.mmPerStep.z * motorZ.getStep());
 }
 
 void Gripper::checkInputs()
@@ -717,7 +721,7 @@ void Gripper::publishOutput()
 
         // fill data into the output message
         iostream.outputMessage.informationByte = 0;
-        iostream.outputMessage.isTargetReached = targetReached;
+        iostream.outputMessage.isTargetReached = targetReached.all;
         setMotorPositions();
 
         // publish the message on Serial2 (hardcoded)
@@ -818,11 +822,11 @@ void Gripper::print()
 
     // print motor joint state
     USBSERIAL.print("Joint positions (x, th, z): (");
-    USBSERIAL.print(params.home.x + (mmPerStep.x * motorX.getStep()));
+    USBSERIAL.print(params.home.x + (params.mmPerStep.x * motorX.getStep()));
     USBSERIAL.print(", ");
-    USBSERIAL.print(params.home.y + (mmPerStep.y * motorY.getStep()));
+    USBSERIAL.print(params.home.y + (params.mmPerStep.y * motorY.getStep()));
     USBSERIAL.print(", ");
-    USBSERIAL.print(params.home.z + (mmPerStep.z * motorZ.getStep()));
+    USBSERIAL.print(params.home.z + (params.mmPerStep.z * motorZ.getStep()));
     USBSERIAL.print(")\n");
 
     // print motor set speeds
@@ -839,7 +843,8 @@ void Gripper::print()
     USBSERIAL.print(in_use.gauge1);
     USBSERIAL.print(in_use.gauge2);
     USBSERIAL.print(in_use.gauge3);
-    USBSERIAL.println(in_use.gauge4);
+    USBSERIAL.print(in_use.gauge4);
+    USBSERIAL.print(")\n");
 
     // print last gauge readings
     USBSERIAL.print("The last gauge readings were (g1, g2, g3, g4): (");
@@ -854,7 +859,7 @@ void Gripper::print()
 
     // print settings
     USBSERIAL.print("is target reached ");
-    USBSERIAL.println(targetReached);
+    USBSERIAL.println(targetReached.all);
     USBSERIAL.print("power saving ");
     USBSERIAL.println(powerSaving);
     USBSERIAL.print("disabled ");

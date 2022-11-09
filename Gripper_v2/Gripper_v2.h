@@ -16,156 +16,140 @@ private:
     /* ----- Key motor variables ----- */
 
     // define motor parameters
-    struct MotorParam {
+    static struct MotorParam {
 
-        int stepsPerRev = 200;    // step angle of 1.8deg -> 200 steps per rev
+        static constexpr int stepsPerRev = 200;    // step angle of 1.8deg -> 200 steps per rev
 
         // motor microstep modes, 1=fullstep, 2=halfstep, 4=quarterstep, ...etc... up to 16
-        struct Microstep {
-            int x = 2;
-            int y = 2;
-            int z = 2;
-        };
-        Microstep microstep;
+        static struct Microstep {
+            static constexpr int x = 2;
+            static constexpr int y = 2;
+            static constexpr int z = 2;
+        } microstep;
 
         // maximum speeds for each motor in rpm
-        struct MaxSpeed {
-            float x = 300;
-            float y = 300;
-            float z = 300;
-        };
-        MaxSpeed maxSpeed;
+        static struct MaxSpeed {
+            static constexpr float x = 300;
+            static constexpr float y = 300;
+            static constexpr float z = 300;
+        } maxSpeed;
 
         // homing speeds for each motor in rpm
-        struct HomingSpeed {
-            float x = 400;
-            float y = 400;
-            float z = 450;
-        };
-        HomingSpeed homingSpeed;
+        static struct HomingSpeed {
+            static constexpr float x = 400;
+            static constexpr float y = 400;
+            static constexpr float z = 450;
+        } homingSpeed;
 
         // direction of rotation wrt to the limit switch
-        struct Clockwise {
-            bool x = true;
-            bool y = false;
-            bool z = false;
-        };
-        Clockwise clockwise;
+        static struct Clockwise {
+            static constexpr bool x = true;
+            static constexpr bool y = false;
+            static constexpr bool z = false;
+        } clockwise;
 
         // how many revolutions from the limit switch is home
-        struct HomeRevs {
-            float x = 1.0;
-            float y = 1.0;
-            float z = 1.0;
-        };
-        HomeRevs homeRevs;
+        static struct HomeRevs {
+            static constexpr float x = 1.0;
+            static constexpr float y = 1.0;
+            static constexpr float z = 1.0;
+        } homeRevs;
 
         // how many revolutions from the limit switch is the limit
-        struct LimitRevs {
-            float x = 32.0; // hard limit at 32.5 (13000 steps)
-            float y = 32.0;
-            float z = 34.0;
-        };
-        LimitRevs limitRevs;
+        static struct LimitRevs {
+            static constexpr float x = 32.0; // hard limit at 32.5 (13000 steps)
+            static constexpr float y = 32.0;
+            static constexpr float z = 34.0;
+        } limitRevs;
 
         // which motors are currently in use
-        struct InUse {
-            bool x = true;
-            bool y = true;
-            bool z = true;
-        };
-        InUse inUse;
+        static struct InUse {
+            static constexpr bool x = true;
+            static constexpr bool y = true;
+            static constexpr bool z = true;
+        } inUse;
 
-        // has the target been reached
-        struct TargetReached {
-            bool x = false;
-            bool y = false;
-            bool z = false;
-        };
-        TargetReached targetReached;
+    } m;
 
-    };
-    MotorParam m;
+    // gripper physical properties all in mm, (depends on MotorParam)
+    static struct Params {
 
-    // motor control inputs
+        // leadscrew distance apart, for calculating finger angle
+        static constexpr float screwDistance_xy = 35;
+
+        // home position in mm
+        static struct Home {
+            static constexpr float x = 134;         // set this
+            static constexpr float y = x;
+            static constexpr float z = 0;           // set this
+        } home;
+
+        // direction of increasing motor steps
+        static struct Direction {
+            static constexpr int x = -1;            // set this
+            static constexpr int y = x;
+            static constexpr int z = 1;             // set this
+        } direction;
+
+        // lead in mm
+        static struct Lead {
+            static constexpr float x = 4;           // set this
+            static constexpr float y = x;
+            static constexpr float z = 4.8768;      // set this
+        } lead;
+
+        // gear reduction from motor to screw
+        static struct GearReduction {
+            static constexpr float x = 1.5;         // set this
+            static constexpr float y = x;
+            static constexpr float z = 1;           // set this
+        } gearReduction;
+
+        // mm increment per revolution of the motor
+        static struct MMPerRev{
+            static constexpr float x = lead.x / gearReduction.x;
+            static constexpr float y = lead.y / gearReduction.y;
+            static constexpr float z = lead.z / gearReduction.z;
+        } mmPerRev;
+
+        // mm travel of the screws per step of the stepper motors, with direction
+        static struct MMPerStep {
+            static constexpr float x = 
+                (mmPerRev.x / (m.stepsPerRev * m.microstep.x)) * direction.x;
+            static constexpr float y = 
+                (mmPerRev.y / (m.stepsPerRev * m.microstep.y)) * direction.y;
+            static constexpr float z = 
+                (mmPerRev.z / (m.stepsPerRev * m.microstep.z)) * direction.z;
+        } mmPerStep;
+
+    } params;
+
+    // motor control commands
     struct Control {
-        /* This structure contains control commands used by the gripper */
 
         // speed the motors will currently turn
         struct Rpm {
             float x;
             float y;
             float z;
-        };
-        Rpm rpm;
+        } rpm;
 
         // step position input
         struct StepTarget {
             int x;
             int y;
             int z;
-        };
-        StepTarget stepTarget;
+        } stepTarget;
 
         // motor state position
-        float radius = 0.0;                        // in mm (range 50 to 134mm)
-        float angle = 0.0;                         // in deg (range -40 to +40deg)
-        float palm = 0.0;                          // in mm (range 0 to 160mm)
+        float radius = 0.0;               // in mm (range 50 to 134mm)
+        float angle = 0.0;                // in deg (range -40 to +40deg)
+        float palm = 0.0;                 // in mm (range 0 to 160mm)
 
         // instruction command
         byte instructionByte;
-    };
-    Control control;
 
-    // gripper physical properties
-    struct Params {
-        /* This structure contains physical constants, all in mm */
-
-        // static constexpr float xy_lead = 4;        // lead in mm for x and y screws
-        // static constexpr float z_lead = 4.8768;    // lead in mm for z screw
-        // static constexpr float xy_gear_red = 1.5;  // gear reduction to xy screws
-        // static constexpr float xy_max = 134;       // home displacement value in mm
-        // static constexpr float xy_diff = 35;       // distance between screws in mm
-        // static constexpr float z_max = 160;        // home displacement value in mm
-
-        static constexpr float screwDistance_xy = 35;
-
-        static struct Home {
-            // home position in mm
-            static constexpr float x = 134;         // set this
-            static constexpr float y = x;
-            static constexpr float z = 0;           // set this
-        } home;
-
-        static struct Direction {
-            // direction of increasing motor steps
-            static constexpr int x = -1;            // set this
-            static constexpr int y = x;
-            static constexpr int z = 1;             // set this
-        } direction;
-
-        static struct Lead {
-            // lead in mm
-            static constexpr float x = 4;           // set this
-            static constexpr float y = x;
-            static constexpr float z = 4.8768;      // set this
-        } lead;
-
-        static struct GearReduction {
-            // gear reduction from motor to screw
-            static constexpr float x = 1.5;         // set this
-            static constexpr float y = x;
-            static constexpr float z = 1;           // set this
-        } gearReduction;
-
-        static struct MMPerRev{
-            // autogenerated mm increment per revolution of the motor
-            static constexpr float x = lead.x / gearReduction.x;
-            static constexpr float y = lead.y / gearReduction.y;
-            static constexpr float z = lead.z / gearReduction.z;
-        } mmPerRev;
-    };
-    Params params;
+    } control;
 
     // create motor objects
     StepperObj motorX { xstep, xdir };
@@ -181,22 +165,23 @@ private:
     // create input/output stream
     GripperCommunication iostream;
 
-    // mm travel of the screws per step of the stepper motors
-    struct {
-        float x;
-        float y;
-        float z;
-    } mmPerStep;
+    // has the target been reached
+    struct TargetReached {
+        bool x = false;
+        bool y = false;
+        bool z = false;
+        bool all = false;
+    } targetReached;
 
     // what speed has been set, default to max speed
-    struct {
+    struct SetSpeed {
         float x;
         float y;
         float z;
     } setSpeed;
 
+    // flag indicating operation mode, 0=serial, 1=joystick, 2=homing
     int operatingMode;
-    bool targetReached;
 
     // booleans to save whether we have unpublished gauge data
     bool newReadGauge1;
@@ -204,7 +189,7 @@ private:
     bool newReadGauge3;
     bool newReadGauge4;
 
-    struct {
+    struct InUse {
         bool gauge1;
         bool gauge2;
         bool gauge3;
