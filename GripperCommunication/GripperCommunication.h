@@ -61,6 +61,10 @@ public:
 	bool readInput();
 	void publishOutput();
 
+  // private, not recommended to use
+  void publishEndTokens();
+  void publishStartTokens();
+
 	/* Message structures for input and output */
 	struct InputMessage {
 		byte instructionByte;

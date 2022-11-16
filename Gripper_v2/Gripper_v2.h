@@ -1,9 +1,9 @@
 #pragma once
 
 // libraries to include
-#include <StepperObj.h>				// this is a library that I made
+#include <StepperObj.h>				    // this is a library that I made
 #include <GripperCommunication.h>	// this is a library that I made
-#include <HX711.h>					// external library for HX711 chip
+#include <HX711.h>					      // external library for HX711 chip
 
 // define pins
 #include "pin_definitions_pcb.h"
@@ -214,6 +214,7 @@ public:
     void runMotors(const int loopMillis);
     void smoothRun(int cycleTime_ms);
     void print();
+    void bt_print();
 
     /* ----- Private Functions ----- */
 private:

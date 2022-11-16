@@ -557,6 +557,7 @@ bool Gripper::checkSerial()
                     break;
                 case iostream.printByte:
                     print();
+                    bt_print(); // print also to bluetooth
                     break;
                 }
             }
@@ -868,4 +869,71 @@ void Gripper::print()
     USBSERIAL.println(debug);
 
     USBSERIAL.print("--- end ---\n\n");
+}
+
+void Gripper::bt_print()
+{
+    /* same as print() but sends to the BTSERIAL connection */
+
+    // publish tokens to indicate a message start
+    iostream.publishStartTokens();
+
+    // print motor step position
+    BTSERIAL.print("Current motor steps (x, y, z): (");
+    BTSERIAL.print(motorX.getStep());
+    BTSERIAL.print(", ");
+    BTSERIAL.print(motorY.getStep());
+    BTSERIAL.print(", ");
+    BTSERIAL.print(motorZ.getStep());
+    BTSERIAL.print(")\n");
+
+    // print motor joint state
+    BTSERIAL.print("Joint positions (x, th, z): (");
+    BTSERIAL.print(params.home.x + (params.mmPerStep.x * motorX.getStep()));
+    BTSERIAL.print(", ");
+    BTSERIAL.print(params.home.y + (params.mmPerStep.y * motorY.getStep()));
+    BTSERIAL.print(", ");
+    BTSERIAL.print(params.home.z + (params.mmPerStep.z * motorZ.getStep()));
+    BTSERIAL.print(")\n");
+
+    // print motor set speeds
+    BTSERIAL.print("Motor speed settings (x, y, z): (");
+    BTSERIAL.print(setSpeed.x);
+    BTSERIAL.print(", ");
+    BTSERIAL.print(setSpeed.y);
+    BTSERIAL.print(", ");
+    BTSERIAL.print(setSpeed.z);
+    BTSERIAL.print(")\n");
+
+    // print gauge use
+    BTSERIAL.print("Gauge use is: ");
+    BTSERIAL.print(in_use.gauge1);
+    BTSERIAL.print(in_use.gauge2);
+    BTSERIAL.print(in_use.gauge3);
+    BTSERIAL.print(in_use.gauge4);
+    BTSERIAL.print(")\n");
+
+    // print last gauge readings
+    BTSERIAL.print("The last gauge readings were (g1, g2, g3, g4): (");
+    BTSERIAL.print(iostream.outputMessage.gaugeOneReading);
+    BTSERIAL.print(", ");
+    BTSERIAL.print(iostream.outputMessage.gaugeTwoReading);
+    BTSERIAL.print(", ");
+    BTSERIAL.print(iostream.outputMessage.gaugeThreeReading);
+    BTSERIAL.print(", ");
+    BTSERIAL.print(iostream.outputMessage.gaugeFourReading);
+    BTSERIAL.print(")\n");
+
+    // print settings
+    BTSERIAL.print("is target reached ");
+    BTSERIAL.println(targetReached.all);
+    BTSERIAL.print("power saving ");
+    BTSERIAL.println(powerSaving);
+    BTSERIAL.print("disabled ");
+    BTSERIAL.println(disabled);
+    BTSERIAL.print("debug ");
+    BTSERIAL.println(debug);
+
+    // publish tokens to indicate the end of a message
+    iostream.publishEndTokens();
 }

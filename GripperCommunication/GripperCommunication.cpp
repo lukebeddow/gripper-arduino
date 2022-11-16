@@ -108,6 +108,33 @@ bool GripperCommunication::readInput()
 	return true;
 }
 
+void GripperCommunication::publishStartTokens()
+{
+  /* publish the message start tokens */
+
+  int j = 0;
+	for (int i = 0; i < startEndSize; i++) {
+		BTSERIAL.write(startMarkerByte);
+	}
+}
+
+void GripperCommunication::publishEndTokens()
+{
+  /* publish the message end tokens */
+
+  // temporary fix, write a 0 before end markers
+	/* the problem is actually that the gripper internal tracking of x/y/z goes
+	to infinity and nan and this sets the last bit to 255 hence it interfered
+	with the end marker bytes. A system of start/end markers which went for example
+	253,254,255 would be immune from this problem */
+	BTSERIAL.write(0);
+
+	// finish the message with the end marker
+	for (int i = 0; i < startEndSize; i++) {
+		BTSERIAL.write(endMarkerByte);
+	}
+}
+
 void GripperCommunication::publishOutput()
 {
 	/* This member function pubishes a message on the serial connection */
@@ -123,25 +150,11 @@ void GripperCommunication::publishOutput()
 	outputUnion.structure.motorY_mm = outputMessage.motorY_mm;
 	outputUnion.structure.motorZ_mm = outputMessage.motorZ_mm;
 
-	// begin the message with the start marker
-	int j = 0;
-	for (int i = 0; i < startEndSize; i++) {
-		BTSERIAL.write(startMarkerByte);
-	}
+	publishStartTokens();
 	
 	for (int i = 0; i < outputDataSize; i++) {
 		BTSERIAL.write(outputUnion.byteArray[i]);
 	}
 
-	// temporary fix, write a 0 before end markers
-	/* the problem is actually that the gripper internal tracking of x/y/z goes
-	to infinity and nan and this sets the last bit to 255 hence it interfered
-	with the end marker bytes. A system of start/end markers which went for example
-	253,254,255 would be immune from this problem */
-	BTSERIAL.write(0);
-
-	// finish the message with the end marker
-	for (int i = 0; i < startEndSize; i++) {
-		BTSERIAL.write(endMarkerByte);
-	}
+  publishEndTokens();
 }
