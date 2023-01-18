@@ -1,6 +1,6 @@
 #pragma once
 
-// are we wired or wireless (bluetooth)
+// hardcode: are we wired or wireless (bluetooth)
 #define LUKE_WIRELESS 0
 
 #if LUKE_WIRELESS

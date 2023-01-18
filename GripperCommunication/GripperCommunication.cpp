@@ -96,9 +96,24 @@ bool GripperCommunication::readInput()
 
 	// extract the raw data, it is fine if we get garbage for x,y,z
 	inputMessage.instructionByte = inputUnion.structure.instructionByte;
-	inputMessage.x = inputUnion.structure.x;
-	inputMessage.y = inputUnion.structure.y;
-	inputMessage.z = inputUnion.structure.z;
+
+  if (_dataReceivedCount == 13) {
+    inputMessage.x = inputUnion.structure.x;
+    inputMessage.y = inputUnion.structure.y;
+    inputMessage.z = inputUnion.structure.z;
+  }
+  else {
+    inputMessage.x = 4.123;
+    inputMessage.y = 4.123;
+    inputMessage.z = 4.123;
+  }
+
+  // TESTING: delete later
+  // if (inputMessage.instructionByte == setSpeedByte) {
+  //   inputMessage.x = 144.123;
+  //   inputMessage.y = 144.123;
+  //   inputMessage.z = 144.123;
+  // }
 
 	// now reset all variables before a new message comes in
 	_inputSuccess == false;

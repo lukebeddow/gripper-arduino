@@ -127,7 +127,7 @@ private:
     // motor control commands
     struct Control {
 
-        // speed the motors will currently turn
+        // speed the motors will currently turn, used with joystick
         struct Rpm {
             float x;
             float y;
@@ -173,7 +173,7 @@ private:
         bool all = false;
     } targetReached;
 
-    // what speed has been set, default to max speed
+    // what speed has been set via input message, default to max speed
     struct SetSpeed {
         float x;
         float y;
@@ -188,13 +188,6 @@ private:
     bool newReadGauge2;
     bool newReadGauge3;
     bool newReadGauge4;
-
-    struct InUse {
-        bool gauge1;
-        bool gauge2;
-        bool gauge3;
-        bool gauge4;
-    } in_use;
 
     /* ----- Public variables ----- */
 public:
