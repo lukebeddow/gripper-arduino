@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <Gripper_v2.h>
+#include <Gripper_v3.h>
 
 // int freeRam () {
 //   extern int __heap_start, *__brkval; 
@@ -13,7 +13,7 @@
 #define YSPEED_OVERRIDE 151.123
 #define ZSPEED_OVERRIDE 200.123
 
-Gripper_v2::Gripper_v2()
+Gripper_v3::Gripper_v3()
 {
     /* Class constructor */
 
@@ -50,7 +50,7 @@ Gripper_v2::Gripper_v2()
     setSpeed.z = m.maxSpeed.z;
 }
 
-void Gripper_v2::setupMotors()
+void Gripper_v3::setupMotors()
 {
     /* This initialisation function configures the motors */
 
@@ -90,7 +90,7 @@ void Gripper_v2::setupMotors()
     // mmPerStep.z *= params.direction.z;
 }
 
-void Gripper_v2::setPins()
+void Gripper_v3::setPins()
 {
     /* This initialisation function configures the arduino pins */
 
@@ -139,7 +139,7 @@ void Gripper_v2::setPins()
     // handled by the library
 }
 
-bool Gripper_v2::readJoystick()
+bool Gripper_v3::readJoystick()
 {
     /* Read to see if the joystick is enabled, and what it is set to */
 
@@ -216,7 +216,7 @@ bool Gripper_v2::readJoystick()
     return true;
 }
 
-void Gripper_v2::homingSequence()
+void Gripper_v3::homingSequence()
 {
     /* Home all of the motors of the gripper, non-interruptible */
 
@@ -243,7 +243,7 @@ void Gripper_v2::homingSequence()
     targetReached.z = z_homed;
 }
 
-void Gripper_v2::setHomeTarget()
+void Gripper_v3::setHomeTarget()
 {
     /* This function prepares for homing, afterwards runMotors should be used */
 
@@ -264,7 +264,7 @@ void Gripper_v2::setHomeTarget()
     targetReached.all = false;
 }
 
-void Gripper_v2::setSpeedTarget()
+void Gripper_v3::setSpeedTarget()
 {
     /* save a speed target */
 
@@ -312,7 +312,7 @@ void Gripper_v2::setSpeedTarget()
     }
 }
 
-void Gripper_v2::setMessageTarget()
+void Gripper_v3::setMessageTarget()
 {
     /* This function calculates the targets for a given input (mm and radians) */
 
@@ -431,7 +431,7 @@ void Gripper_v2::setMessageTarget()
     operatingMode = 1;
 }
 
-void Gripper_v2::readGauge(const int gauge_num)
+void Gripper_v3::readGauge(const int gauge_num)
 {
     /* This function reads an individual gauge, reading takes 380us */
 
@@ -463,7 +463,7 @@ void Gripper_v2::readGauge(const int gauge_num)
     }
 }
 
-void Gripper_v2::readGauges()
+void Gripper_v3::readGauges()
 {
     /* Read all gauges one after the other*/
 
@@ -473,7 +473,7 @@ void Gripper_v2::readGauges()
     readGauge(4);
 }
 
-bool Gripper_v2::checkSerial()
+bool Gripper_v3::checkSerial()
 {
     /* This function checks to see if there is an incoming serial message */
 
@@ -562,7 +562,7 @@ bool Gripper_v2::checkSerial()
     return false;
 }
 
-void Gripper_v2::runMotors(const int loopMillis)
+void Gripper_v3::runMotors(const int loopMillis)
 {
     /* This function pulses the motors based on the current operation mode */
 
@@ -651,7 +651,7 @@ void Gripper_v2::runMotors(const int loopMillis)
     }
 }
 
-void Gripper_v2::motorEnable(bool is_enabled)
+void Gripper_v3::motorEnable(bool is_enabled)
 {
     /* This function enables or disables the motors, in order to save power
     * and reduce heat generation when not moving */
@@ -664,7 +664,7 @@ void Gripper_v2::motorEnable(bool is_enabled)
     }
 }
 
-void Gripper_v2::setMotorPositions()
+void Gripper_v3::setMotorPositions()
 {
     /* This function sets the motor positions for the output message */
 
@@ -676,7 +676,7 @@ void Gripper_v2::setMotorPositions()
         params.home.z + (params.mmPerStep.z * motorZ.getStep());
 }
 
-void Gripper_v2::checkInputs()
+void Gripper_v3::checkInputs()
 {
     /* This function monitors the input streams to the gripper */
 
@@ -688,7 +688,7 @@ void Gripper_v2::checkInputs()
     readGauges();
 }
 
-void Gripper_v2::sendErrorMessage(byte error_code)
+void Gripper_v3::sendErrorMessage(byte error_code)
 {
     /* send an empty message with a specific error code byte to indicate an error */
 
@@ -705,7 +705,7 @@ void Gripper_v2::sendErrorMessage(byte error_code)
     iostream.publishOutput();
 }
 
-void Gripper_v2::publishOutput()
+void Gripper_v3::publishOutput()
 {
     /* This function checks if there is a new output to publish, and if
     so it publishes it */
@@ -729,7 +729,7 @@ void Gripper_v2::publishOutput()
     }
 }
 
-void Gripper_v2::smoothRun(int cycleTime_ms)
+void Gripper_v3::smoothRun(int cycleTime_ms)
 {
     /* This function attempts to run the gripper smoothly, interspersing
     I/O operations with running the motors */
@@ -799,7 +799,7 @@ void Gripper_v2::smoothRun(int cycleTime_ms)
     
 }
 
-void Gripper_v2::print()
+void Gripper_v3::print()
 {
     /* print information to Serial terminal */
 
@@ -862,7 +862,7 @@ void Gripper_v2::print()
     USBSERIAL.print("--- end ---\n\n");
 }
 
-void Gripper_v2::bt_print()
+void Gripper_v3::bt_print()
 {
     /* same as print() but sends to the BTSERIAL connection */
 

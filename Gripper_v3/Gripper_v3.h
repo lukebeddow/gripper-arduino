@@ -9,7 +9,7 @@
 #include "pin_definitions_pcb.h"
 
 // define the gripper class
-class Gripper_v2
+class Gripper_v3
 {
 private:
 
@@ -29,15 +29,15 @@ private:
 
         // maximum speeds for each motor in rpm
         static struct MaxSpeed {
-            static constexpr float x = 300;
-            static constexpr float y = 300;
-            static constexpr float z = 300;
+            static constexpr float x = 400;
+            static constexpr float y = 400;
+            static constexpr float z = 400;
         } maxSpeed;
 
         // homing speeds for each motor in rpm
         static struct HomingSpeed {
-            static constexpr float x = 400;
-            static constexpr float y = 400;
+            static constexpr float x = 450;
+            static constexpr float y = 450;
             static constexpr float z = 450;
         } homingSpeed;
 
@@ -100,7 +100,7 @@ private:
 
         // gear reduction from motor to screw
         static struct GearReduction {
-            static constexpr float x = 1.5;         // set this
+            static constexpr float x = 1.0;         // set this
             static constexpr float y = x;
             static constexpr float z = 1;           // set this
         } gearReduction;
@@ -198,7 +198,7 @@ public:
 
     /* ----- Public Functions ----- */
 public:
-    Gripper_v2();
+    Gripper_v3();
     void homingSequence();
     void readGauges();
     void checkInputs();
