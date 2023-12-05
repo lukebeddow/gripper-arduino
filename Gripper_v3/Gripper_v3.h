@@ -6,7 +6,7 @@
 #include <HX711.h>					      // external library for HX711 chip
 
 // define pins
-#include "pin_definitions_pcb.h"
+#include "pin_definitions_pcb_v3.h"
 
 // define the gripper class
 class Gripper_v3
