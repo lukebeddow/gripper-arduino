@@ -142,7 +142,7 @@ void GripperCommunication::publishEndTokens()
 	to infinity and nan and this sets the last bit to 255 hence it interfered
 	with the end marker bytes. A system of start/end markers which went for example
 	253,254,255 would be immune from this problem */
-	BTSERIAL.write(0);
+	BTSERIAL.write((byte) 0);
 
 	// finish the message with the end marker
 	for (int i = 0; i < startEndSize; i++) {

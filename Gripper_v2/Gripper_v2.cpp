@@ -1,11 +1,11 @@
 #include <Arduino.h>
 #include <Gripper_v2.h>
 
-int freeRam () {
-  extern int __heap_start, *__brkval; 
-  int v; 
-  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
-}
+// int freeRam () {
+//   extern int __heap_start, *__brkval; 
+//   int v; 
+//   return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
+// }
 
 // temporary fix for speed issue, delete when fixed
 #define USE_SPEED_OVERRIDE 1
@@ -42,6 +42,7 @@ Gripper::Gripper()
     powerSaving = true;
     disabled = false;
     debug = true;
+    timedActionSecs = 0.2;
 
     // speed defaults
     setSpeed.x = m.maxSpeed.x;
@@ -352,6 +353,12 @@ void Gripper::setMessageTarget()
     //     control.stepTarget.z = iostream.inputMessage.z;
     //     goto GOTO_after_step_set;
     // }
+    else if (iostream.inputMessage.instructionByte == iostream.timedCommandByte_m) {
+        if (debug) { USBSERIAL.print(F("Received timed motor command m\n")); }
+        x_mm = iostream.inputMessage.x * 1e3;
+        y_mm = iostream.inputMessage.y * 1e3;
+        z_mm = iostream.inputMessage.z * 1e3;
+    }
     else {
         sendErrorMessage(iostream.invalidCommandByte);
         return;
@@ -391,6 +398,19 @@ void Gripper::setMessageTarget()
     setSpeed.y = YSPEED_OVERRIDE;
     setSpeed.z = ZSPEED_OVERRIDE;
     #endif
+
+    // if we are performing a timed action, set speeds to match
+    if (iostream.inputMessage.instructionByte == iostream.timedCommandByte_m) {
+
+        setSpeed.x = (revs_x) / (timedActionSecs / 60.0);
+        setSpeed.y = (revs_y) / (timedActionSecs / 60.0);
+        setSpeed.z = (revs_z) / (timedActionSecs / 60.0);
+
+        // check we don't exceed our speed limits
+        if (setSpeed.x > m.maxSpeed.x) setSpeed.x = m.maxSpeed.x;
+        if (setSpeed.y > m.maxSpeed.y) setSpeed.y = m.maxSpeed.y;
+        if (setSpeed.z > m.maxSpeed.z) setSpeed.z = m.maxSpeed.z;
+    }
 
     // set motor speeds
     motorX.setRPM(setSpeed.x);
@@ -522,6 +542,15 @@ bool Gripper::checkSerial()
                 case iostream.printByte:
                     print();
                     bt_print(); // print also to bluetooth
+                    break;
+                case iostream.changeTimedActionByte:
+                    timedActionSecs = iostream.inputMessage.x;
+                    if (timedActionSecs < 0.01) timedActionSecs = 0.01;
+                    else if (timedActionSecs > 100) timedActionSecs = 100;
+                    if (debug) { 
+                        USBSERIAL.print(F("Changed timedActionSecs to "));
+                        USBSERIAL.println(timedActionSecs); 
+                    }
                     break;
                 }
             }
@@ -823,10 +852,12 @@ void Gripper::print()
     USBSERIAL.println(disabled);
     USBSERIAL.print(F("debug "));
     USBSERIAL.println(debug);
+    USBSERIAL.print(F("timed action seconds "));
+    USBSERIAL.println(timedActionSecs);
 
-    // print memory use - TESTING
-    USBSERIAL.print(F("free RAM is "));
-    USBSERIAL.print(freeRam());
+    // // print memory use - TESTING
+    // USBSERIAL.print(F("free RAM is "));
+    // USBSERIAL.print(freeRam());
 
     USBSERIAL.print("--- end ---\n\n");
 }
@@ -885,10 +916,12 @@ void Gripper::bt_print()
     BTSERIAL.println(disabled);
     BTSERIAL.print(F("debug "));
     BTSERIAL.println(debug);
+    BTSERIAL.print(F("timed action seconds "));
+    BTSERIAL.println(timedActionSecs);
 
-    // print memory use - TESTING
-    BTSERIAL.print(F("free RAM is "));
-    BTSERIAL.print(freeRam());
+    // // print memory use - TESTING
+    // BTSERIAL.print(F("free RAM is "));
+    // BTSERIAL.print(freeRam());
 
     // publish tokens to indicate the end of a message
     iostream.publishEndTokens();

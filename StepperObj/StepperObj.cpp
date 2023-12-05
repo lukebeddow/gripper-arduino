@@ -486,3 +486,10 @@ int StepperObj::getStep()
 	/* This function returns the step the motor is on */
 	return _stepNumber;
 }
+
+int StepperObj::setStep(int step)
+{
+	/* for testing: can set the step number */
+
+	_stepNumber = step;
+}

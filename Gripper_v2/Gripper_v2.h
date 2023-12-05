@@ -194,11 +194,11 @@ public:
     bool powerSaving;           // motors are turned off when not moving
     bool disabled;              // motors are prevented from moving
     bool debug;                 // print debug messages in Serial
+    float timedActionSecs;      // if doing timed commands, how long is the time interval
 
     /* ----- Public Functions ----- */
 public:
     Gripper();
-    void waitGauge();
     void homingSequence();
     void readGauges();
     void checkInputs();

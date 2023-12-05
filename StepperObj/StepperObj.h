@@ -22,6 +22,7 @@ public:
 	void setupWorkspace(float home_revs, float end_revs, int limit_pin,
 		bool true_state);
 	int getStep();
+	int setStep(int step);
 
 private:
 	// core motor parameters
