@@ -799,6 +799,89 @@ void Gripper_v3::smoothRun(int cycleTime_ms)
     
 }
 
+void Gripper_v3::newSmoothRun(const int loopMillis)
+{
+    /* This function pulses the motors based on the current operation mode */
+
+    /* Tasks:
+            1. readJoystick();
+            2. checkSerial();
+            3. readGauge(1);
+            4. readGauge(2);
+            5. readGauge(3);
+            6. readGauge(4);
+            7. publishOutput();
+    */
+
+   /*
+   so we have various time dependent tasks
+   pulsing the motors
+   
+   
+   */
+
+    // if gripper is in disabled mode, do not move any motors
+    if (disabled) {
+        return;
+    }
+
+    unsigned long functionStartMillis = millis();
+
+    while ((millis() - functionStartMillis) < loopMillis) {
+
+        if (powerSaving) {
+            motorEnable(not targetReached.all);
+        }
+
+        // first pulse the motors
+        if (operatingMode == 1) {
+
+            // move towards a given target
+            targetReached.x = motorX.targetPulse();
+            targetReached.y = motorY.targetPulse();
+            targetReached.z = motorZ.targetPulse();
+
+        }
+        else if (operatingMode == 2) {
+
+            // which motors do we need to home
+            bool x_homed = not m.inUse.x or targetReached.x;
+            bool y_homed = not m.inUse.y or targetReached.y;
+            bool z_homed = not m.inUse.z or targetReached.z;
+
+            while ((millis() - loopStartMillis) < loopMillis) {
+                // home pulse only if the motor is not yet homed
+                if (not x_homed) x_homed = motorX.homePulse();
+                if (not y_homed) y_homed = motorY.homePulse();
+                if (not z_homed) z_homed = motorZ.homePulse();
+            }
+
+            // update if we have reached our target
+            targetReached.x = x_homed;
+            targetReached.y = y_homed;
+            targetReached.z = z_homed;
+
+        }
+
+        // check if the target has been reached
+        if (targetReached.x and
+            targetReached.y and
+            targetReached.z) {
+            targetReached.all = true;
+            operatingMode = 1;
+        }
+
+        // now read the gauges
+        readGauges();
+
+        // check to publish output
+        publishOutput():
+
+        // check incoming serial commands
+        checkSerial();
+    }
+}
+
 void Gripper_v3::print()
 {
     /* print information to Serial terminal */
