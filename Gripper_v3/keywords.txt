@@ -5,6 +5,6 @@ checkInputs	KEYWORD2
 sendErrorMessage	KEYWORD2
 publishOutput	KEYWORD2
 runMotors	KEYWORD2
-smoothRun	KEYWORD2
+run	KEYWORD2
+setGripperTarget	KEYWORD2
 print	KEYWORD2
-bt_print	KEYWORD2

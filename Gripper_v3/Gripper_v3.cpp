@@ -1,18 +1,6 @@
 #include <Arduino.h>
 #include <Gripper_v3.h>
 
-// int freeRam () {
-//   extern int __heap_start, *__brkval; 
-//   int v; 
-//   return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
-// }
-
-// temporary fix for speed issue, delete when fixed
-#define USE_SPEED_OVERRIDE 1
-#define XSPEED_OVERRIDE 151.123
-#define YSPEED_OVERRIDE 151.123
-#define ZSPEED_OVERRIDE 200.123
-
 Gripper_v3::Gripper_v3()
 {
     /* Class constructor */
@@ -26,7 +14,7 @@ Gripper_v3::Gripper_v3()
     gauge3.begin(SG3_dt, SG3_sck);
     gauge4.begin(SG4_dt, SG4_sck);
 
-    // do we apply a scaling and offset here? not currently
+    // do we apply a scaling and offset here? no plans to
     // gauge1.set_scale(loadcell_divider);
     // gauge1.set_offset(loadcell_offset);
 
@@ -37,12 +25,6 @@ Gripper_v3::Gripper_v3()
     newReadGauge2 = false;
     newReadGauge3 = false;
     newReadGauge4 = false;
-
-    // default optional parameters
-    powerSaving = true;
-    disabled = false;
-    debug = true;
-    timedActionSecs = 0.2;
 
     // speed defaults
     setSpeed.x = m.maxSpeed.x;
@@ -143,6 +125,9 @@ bool Gripper_v3::readJoystick()
 {
     /* Read to see if the joystick is enabled, and what it is set to */
 
+    // disabled
+    return false;
+
     // is the joystick connected and enabled
     if (digitalRead(blue_enable) == HIGH) {
         // joystick is off
@@ -241,6 +226,8 @@ void Gripper_v3::homingSequence()
     targetReached.x = x_homed;
     targetReached.y = y_homed;
     targetReached.z = z_homed;
+
+    if (powerSaving) motorEnable(false);
 }
 
 void Gripper_v3::setHomeTarget()
@@ -248,7 +235,9 @@ void Gripper_v3::setHomeTarget()
     /* This function prepares for homing, afterwards runMotors should be used */
 
     if (debug) {
-        USBSERIAL.print(F("Setting home target\n"));
+        iostream.startDebugMessage();
+        DEBUGSERIAL.print(F("Setting home target\n"));
+        iostream.endDebugMessage();
     }
 
     // in case a previous homing sequence was interrupted
@@ -269,13 +258,14 @@ void Gripper_v3::setSpeedTarget()
     /* save a speed target */
 
     if (debug) {
-        USBSERIAL.print(F("Incoming speed request (x, y, z) of: ("));
-        USBSERIAL.print(iostream.inputMessage.x);
-        USBSERIAL.print(F(", "));
-        USBSERIAL.print(iostream.inputMessage.y);
-        USBSERIAL.print(F(", "));
-        USBSERIAL.print(iostream.inputMessage.z);
-        USBSERIAL.print(F(")\n"));
+        iostream.startDebugMessage();
+        DEBUGSERIAL.print(F("Incoming speed request (x, y, z) of: ("));
+        DEBUGSERIAL.print(iostream.inputMessage.x);
+        DEBUGSERIAL.print(F(", "));
+        DEBUGSERIAL.print(iostream.inputMessage.y);
+        DEBUGSERIAL.print(F(", "));
+        DEBUGSERIAL.print(iostream.inputMessage.z);
+        DEBUGSERIAL.print(F(")\n"));
     }
 
     setSpeed.x = iostream.inputMessage.x;
@@ -302,13 +292,14 @@ void Gripper_v3::setSpeedTarget()
     if (setSpeed.z > m.maxSpeed.z) setSpeed.z = m.maxSpeed.z;
 
     if (debug) {
-        USBSERIAL.print(F("Speed target (x, y, z) set: ("));
-        USBSERIAL.print(setSpeed.x);
-        USBSERIAL.print(F(", "));
-        USBSERIAL.print(setSpeed.y);
-        USBSERIAL.print(F(", "));
-        USBSERIAL.print(setSpeed.z);
-        USBSERIAL.print(F(")\n"));
+        DEBUGSERIAL.print(F("Speed target (x, y, z) set: ("));
+        DEBUGSERIAL.print(setSpeed.x);
+        DEBUGSERIAL.print(F(", "));
+        DEBUGSERIAL.print(setSpeed.y);
+        DEBUGSERIAL.print(F(", "));
+        DEBUGSERIAL.print(setSpeed.z);
+        DEBUGSERIAL.print(F(")\n"));
+        iostream.endDebugMessage();
     }
 }
 
@@ -316,48 +307,56 @@ void Gripper_v3::setMessageTarget()
 {
     /* This function calculates the targets for a given input (mm and radians) */
 
+    if (debug) { 
+        iostream.startDebugMessage(); 
+    }
+
     float x_mm = 0;
     float y_mm = 0;
     float z_mm = 0;
 
+    timedActionInProgress = false;
+
     // convert the input message to millimeter motor positions
     if (iostream.inputMessage.instructionByte == iostream.motorCommandByte_m) {
-        if (debug) { USBSERIAL.print(F("Received motor command m\n")); }
+        if (debug) { DEBUGSERIAL.print(F("Received motor command m\n")); }
         x_mm = iostream.inputMessage.x * 1e3;
         y_mm = iostream.inputMessage.y * 1e3;
         z_mm = iostream.inputMessage.z * 1e3;
     }
     else if (iostream.inputMessage.instructionByte == iostream.motorCommandByte_mm) {
-        if (debug) { USBSERIAL.print(F("Received motor command mm\n")); }
+        if (debug) { DEBUGSERIAL.print(F("Received motor command mm\n")); }
         x_mm = iostream.inputMessage.x;
         y_mm = iostream.inputMessage.y;
         z_mm = iostream.inputMessage.z;
     }
     else if (iostream.inputMessage.instructionByte == iostream.jointCommandByte_m_rad) {
-        if (debug) { USBSERIAL.print(F("Received motor command m rad\n")); }
+        if (debug) { DEBUGSERIAL.print(F("Received motor command m rad\n")); }
         x_mm = iostream.inputMessage.x * 1e3;
         y_mm = x_mm - params.screwDistance_xy * sin(iostream.inputMessage.y);
         z_mm = iostream.inputMessage.z * 1e3;
     }
     else if (iostream.inputMessage.instructionByte == iostream.jointCommandByte_mm_deg) {
-        if (debug) { USBSERIAL.print(F("Received motor command mm deg\n")); }
+        if (debug) { DEBUGSERIAL.print(F("Received motor command mm deg\n")); }
         constexpr float to_rad = 3.141592654 / 180.0;
         x_mm = iostream.inputMessage.x;
         y_mm = x_mm - params.screwDistance_xy * sin(iostream.inputMessage.y * to_rad);
         z_mm = iostream.inputMessage.z;
     }
     // else if (iostream.inputMessage.instructionByte == iostream.stepCommandByte) {
-    //     if (debug) { USBSERIAL.print("Received motor command step\n"); }
+    //     if (debug) { DEBUGSERIAL.print("Received motor command step\n"); }
     //     control.stepTarget.x = iostream.inputMessage.x;
     //     control.stepTarget.y = iostream.inputMessage.y;
     //     control.stepTarget.z = iostream.inputMessage.z;
     //     goto GOTO_after_step_set;
     // }
     else if (iostream.inputMessage.instructionByte == iostream.timedCommandByte_m) {
-        if (debug) { USBSERIAL.print(F("Received timed motor command m\n")); }
+        if (debug) { DEBUGSERIAL.print(F("Received timed motor command m\n")); }
         x_mm = iostream.inputMessage.x * 1e3;
         y_mm = iostream.inputMessage.y * 1e3;
         z_mm = iostream.inputMessage.z * 1e3;
+        timedActionInProgress = true;
+        timedActionStart_ms = millis();
     }
     else {
         sendErrorMessage(iostream.invalidCommandByte);
@@ -365,9 +364,9 @@ void Gripper_v3::setMessageTarget()
     }
 
     if (debug) {
-        USBSERIAL.print(F("x_mm is ")); USBSERIAL.println(x_mm);
-        USBSERIAL.print(F("y_mm is ")); USBSERIAL.println(y_mm);
-        USBSERIAL.print(F("z_mm is ")); USBSERIAL.println(z_mm);
+        DEBUGSERIAL.print(F("x_mm is ")); DEBUGSERIAL.println(x_mm);
+        DEBUGSERIAL.print(F("y_mm is ")); DEBUGSERIAL.println(y_mm);
+        DEBUGSERIAL.print(F("z_mm is ")); DEBUGSERIAL.println(z_mm);
     }
 
     // calculate target revolutions for each motor
@@ -380,7 +379,8 @@ void Gripper_v3::setMessageTarget()
         revs_y < 0 or revs_y > m.limitRevs.y or
         revs_z < 0 or revs_z > m.limitRevs.z) {
         if (debug) {
-            USBSERIAL.println("Revs limit exeeded, abort");
+            DEBUGSERIAL.println("Revs limit exeeded, abort");
+            iostream.endDebugMessage();
         }
         return;
     }
@@ -391,13 +391,6 @@ void Gripper_v3::setMessageTarget()
     control.stepTarget.z = revs_z * m.stepsPerRev * m.microstep.z;
 
 // GOTO_after_step_set:
-
-    // TEMPORARY FIX: delete later but be aware these values get corrupted
-    #if USE_SPEED_OVERRIDE
-    setSpeed.x = XSPEED_OVERRIDE;
-    setSpeed.y = YSPEED_OVERRIDE;
-    setSpeed.z = ZSPEED_OVERRIDE;
-    #endif
 
     // if we are performing a timed action, set speeds to match
     if (iostream.inputMessage.instructionByte == iostream.timedCommandByte_m) {
@@ -410,6 +403,15 @@ void Gripper_v3::setMessageTarget()
         if (setSpeed.x > m.maxSpeed.x) setSpeed.x = m.maxSpeed.x;
         if (setSpeed.y > m.maxSpeed.y) setSpeed.y = m.maxSpeed.y;
         if (setSpeed.z > m.maxSpeed.z) setSpeed.z = m.maxSpeed.z;
+
+        if (debug) {
+            DEBUGSERIAL.print("x speed ");
+            DEBUGSERIAL.println(setSpeed.x);
+            DEBUGSERIAL.print("y speed ");
+            DEBUGSERIAL.println(setSpeed.y);
+            DEBUGSERIAL.print("z speed ");
+            DEBUGSERIAL.println(setSpeed.z);
+        }
     }
 
     // set motor speeds
@@ -429,6 +431,23 @@ void Gripper_v3::setMessageTarget()
     targetReached.z = false;
 
     operatingMode = 1;
+
+    if (debug) { 
+        iostream.endDebugMessage(); 
+    }
+}
+
+void Gripper_v3::setGripperTarget(float x, float y, float z)
+{
+    /* input a position target in metres */
+
+    // set motor speeds
+    iostream.inputMessage.instructionByte = iostream.motorCommandByte_m;
+    iostream.inputMessage.x = x;
+    iostream.inputMessage.y = y;
+    iostream.inputMessage.z = z;
+
+    setMessageTarget();
 }
 
 void Gripper_v3::readGauge(const int gauge_num)
@@ -477,24 +496,14 @@ bool Gripper_v3::checkSerial()
 {
     /* This function checks to see if there is an incoming serial message */
 
-    if (debug) {
-        if (USBSERIAL.available() > 0) {
-            byte x = USBSERIAL.read();
-
-            // print diagnostic information
-            if (x == 'p') {
-                print();
-            }
-        }
-    }
-
     if (BTSERIAL.available() > 0) {
         // read any input bytes, see if we received a message
         if (iostream.readInput()) {
 
             if (debug) {
-                USBSERIAL.print(F("Received message, instruction byte is "));
-                USBSERIAL.println(iostream.inputMessage.instructionByte);
+                iostream.startDebugMessage();
+                DEBUGSERIAL.print(F("Received message, instruction byte is "));
+                DEBUGSERIAL.println(iostream.inputMessage.instructionByte);
             }
 
             // have we received a position command message
@@ -510,21 +519,29 @@ bool Gripper_v3::checkSerial()
                     setHomeTarget();
                     break;
                 case iostream.powerSavingOnByte:
-                    if (debug) { USBSERIAL.print(F("Power saving set to true\n")); }
+                    if (debug) { 
+                        DEBUGSERIAL.print(F("Power saving set to true\n")); 
+                    }
                     powerSaving = true;
                     break;
                 case iostream.powerSavingOffByte:
-                    if (debug) { USBSERIAL.print(F("Power saving set to false\n")); }
+                    if (debug) { 
+                        DEBUGSERIAL.print(F("Power saving set to false\n")); 
+                    }
                     if (!disabled) motorEnable(true);
                     powerSaving = false;
                     break;
                 case iostream.stopByte:
-                    if (debug) { USBSERIAL.print(F("Disabled set to true\n")); }
+                    if (debug) { 
+                        DEBUGSERIAL.print(F("Disabled set to true\n")); 
+                    }
                     motorEnable(false);
                     disabled = true;
                     break;
                 case iostream.resumeByte:
-                    if (debug) { USBSERIAL.print(F("Disabled set to false\n")); }
+                    if (debug) { 
+                        DEBUGSERIAL.print(F("Disabled set to false\n")); 
+                    }
                     motorEnable(true);
                     disabled = false;
                     break;
@@ -532,27 +549,79 @@ bool Gripper_v3::checkSerial()
                     setSpeedTarget();
                     break;
                 case iostream.debugOnByte:
-                    USBSERIAL.print(F("Debug set to true\n"));
+                    iostream.startDebugMessage();
+                    DEBUGSERIAL.print(F("Debug set to true\n"));
+                    iostream.endDebugMessage();
                     debug = true;
                     break;
                 case iostream.debugOffByte:
-                    USBSERIAL.print(F("Debug set to false\n"));
+                    iostream.startDebugMessage();
+                    DEBUGSERIAL.print(F("Debug set to false\n"));
+                    iostream.endDebugMessage();
                     debug = false;
                     break;
                 case iostream.printByte:
                     print();
-                    bt_print(); // print also to bluetooth
                     break;
                 case iostream.changeTimedActionByte:
                     timedActionSecs = iostream.inputMessage.x;
                     if (timedActionSecs < 0.01) timedActionSecs = 0.01;
                     else if (timedActionSecs > 100) timedActionSecs = 100;
                     if (debug) { 
-                        USBSERIAL.print(F("Changed timedActionSecs to "));
-                        USBSERIAL.println(timedActionSecs); 
+                        DEBUGSERIAL.print(F("Changed timedActionSecs to "));
+                        DEBUGSERIAL.println(timedActionSecs); 
+                    }
+                    break;
+                case iostream.changeTimedActionPubEarlyByte:
+                    timedActionPubEarly = iostream.inputMessage.x;
+                    if (timedActionPubEarly < 0.01) timedActionPubEarly = -1;
+                    else if (timedActionPubEarly > 100) timedActionPubEarly = 100;
+                    if (debug) { 
+                        DEBUGSERIAL.print(F("Changed timedActionPubEarly to "));
+                        DEBUGSERIAL.println(timedActionPubEarly); 
+                    }
+                    break;
+                case iostream.setGaugeHzByte:
+                    gauge_hz = iostream.inputMessage.x;
+                    if (gauge_hz < 0.01) gauge_hz = 0.01;
+                    else if (gauge_hz > 100) gauge_hz = 100;
+                    if (debug) { 
+                        DEBUGSERIAL.print(F("Gauge hz set to "));
+                        DEBUGSERIAL.println(gauge_hz);
+                    }
+                    break;
+                case iostream.setPublishHzByte:
+                    publish_hz = iostream.inputMessage.x;
+                    if (publish_hz < 0.01) publish_hz = 0.01;
+                    else if (publish_hz > 100) publish_hz = 100;
+                    if (debug) { 
+                        DEBUGSERIAL.print(F("Publish hz set to "));
+                        DEBUGSERIAL.println(publish_hz);
+                    }
+                    break;
+                case iostream.setSerialHzByte:
+                    serial_hz = iostream.inputMessage.x;
+                    if (serial_hz < 0.01) serial_hz = 0.01;
+                    else if (serial_hz > 100) serial_hz = 100;
+                    if (debug) { 
+                        DEBUGSERIAL.print(F("Serial hz set to "));
+                        DEBUGSERIAL.println(serial_hz);
+                    }
+                    break;
+                case iostream.setMotorHzByte:
+                    motor_hz = iostream.inputMessage.x;
+                    if (motor_hz < 0.01) motor_hz = 0.01;
+                    else if (motor_hz > 100000) motor_hz = 100000;
+                    if (debug) { 
+                        DEBUGSERIAL.print(F("Motor hz set to "));
+                        DEBUGSERIAL.println(motor_hz);
                     }
                     break;
                 }
+            }
+
+            if (debug) {
+                iostream.endDebugMessage();
             }
 
             return true;
@@ -573,31 +642,11 @@ void Gripper_v3::runMotors(const int loopMillis)
 
     unsigned long loopStartMillis = millis();
 
-    // joystick mode
-    if (operatingMode == 0) {
+    // prevent joystick motion
+    if (operatingMode = 0) operatingMode = 1;
 
-        if (powerSaving) {
-            if (control.rpm.x == 0 and
-                control.rpm.y == 0 and
-                control.rpm.z == 0) {
-                motorEnable(false);
-            }
-            else {
-                motorEnable(true);
-            }
-        }
-
-        while ((millis() - loopStartMillis) < loopMillis) {
-            motorX.rampedPulse();
-            motorY.rampedPulse();
-            motorZ.rampedPulse();
-        }
-
-        // default for joystick mode
-        targetReached.all = false;
-    }
     // serial input target position mode
-    else if (operatingMode == 1) {
+    if (operatingMode == 1) {
         
         if (powerSaving) {
             motorEnable(not targetReached.all);
@@ -718,6 +767,21 @@ void Gripper_v3::publishOutput()
         iostream.outputMessage.isTargetReached = targetReached.all;
         setMotorPositions();
 
+        // for timed actions, we can publish early that target is reached for sync
+        if (targetReached.all) {
+            timedActionInProgress = false;
+        }
+        if (timedActionInProgress) {
+            if (millis() - (timedActionSecs - timedActionPubEarly) > timedActionStart_ms) {
+                iostream.outputMessage.isTargetReached = true;
+            }
+            if (debug) {
+                iostream.startDebugMessage();
+                DEBUGSERIAL.println("Timed action early publish target reached");
+                iostream.endDebugMessage();
+            }
+        }
+
         // publish the message on Serial2 (hardcoded)
         iostream.publishOutput();
         
@@ -729,156 +793,126 @@ void Gripper_v3::publishOutput()
     }
 }
 
-void Gripper_v3::smoothRun(int cycleTime_ms)
+void Gripper_v3::run()
 {
-    /* This function attempts to run the gripper smoothly, interspersing
-    I/O operations with running the motors */
+    /* call the run function without argument specifying how long for. Runs the function
+    only once. It is fine to loop and call the function like this */
 
-    /* Tasks:
-            1. readJoystick();
-            2. checkSerial();
-            3. readGauge(1);
-            4. readGauge(2);
-            5. readGauge(3);
-            6. readGauge(4);
-            7. publishOutput();
-    */
-
-    unsigned long startTime_us = micros();
-
-    constexpr int numTasks = 7;
-    constexpr int minTaskTime_ms = 2;       // milliseconds
-    constexpr int minRunPadding_ms = 2;     // milliseconds
-
-    // enforce a minimum cycle time
-    if (cycleTime_ms < minTaskTime_ms * numTasks + minRunPadding_ms) {
-        cycleTime_ms = minTaskTime_ms * numTasks + minRunPadding_ms;
-
-        if (debug) {
-            USBSERIAL.print(F("Cycle time increased to "));
-            USBSERIAL.println(cycleTime_ms);
-        }
-    }
-
-    // calculate time for regular tasks
-    int taskTime = (cycleTime_ms - minRunPadding_ms) / numTasks;
-
-    /* execute tasks */
-    readJoystick();
-    runMotors(taskTime);
-
-    checkSerial();
-    runMotors(taskTime);
-
-    readGauge(1);
-    runMotors(taskTime);
-
-    readGauge(2);
-    runMotors(taskTime);
-
-    readGauge(3);
-    runMotors(taskTime);
-
-    readGauge(4);
-    runMotors(taskTime);
-
-    publishOutput();
-    runMotors(taskTime);
-
-    // finally, we want to run the motors until the cycle time is up
-    unsigned long endTime_us = micros();
-    unsigned long elapsedTime_ms = (endTime_us - startTime_us) / 1000;
-    int remainingTime_ms = cycleTime_ms - elapsedTime_ms;
-
-    if (remainingTime_ms > 0) {
-        runMotors(remainingTime_ms);
-    }
-    else if (debug) {
-        USBSERIAL.print(F("Cycle time exceeded\n"));
-    }
-    
+    run(0); // zero indicates run only once
 }
 
-void Gripper_v3::newSmoothRun(const int loopMillis)
+void Gripper_v3::run(unsigned long runtime_ms)
 {
-    /* This function pulses the motors based on the current operation mode */
+    /* Run the gripper for a given number of milliseconds. It is fine to call this
+    function repeatedly without giving a number of milliseconds. If runtime_ms=0
+    this function does not loop and just executes the main body once. */
 
-    /* Tasks:
-            1. readJoystick();
-            2. checkSerial();
-            3. readGauge(1);
-            4. readGauge(2);
-            5. readGauge(3);
-            6. readGauge(4);
-            7. publishOutput();
-    */
-
-   /*
-   so we have various time dependent tasks
-   pulsing the motors
-   
-   
-   */
-
-    // if gripper is in disabled mode, do not move any motors
-    if (disabled) {
-        return;
+    // if we are only running one loop
+    bool run_once = false;
+    if (runtime_ms == 0) {
+        runtime_ms = 10; // value to ensure we run one loop
+        run_once = true;
     }
 
-    unsigned long functionStartMillis = millis();
+    // persist information between function calls
+    static unsigned long total_calls = 0;
+    static unsigned long first_call_time = millis();
 
-    while ((millis() - functionStartMillis) < loopMillis) {
+    static unsigned long last_publish_us = 0;
+    static unsigned long last_serial_us = 0;
+    static unsigned long last_motor_us = 0;
+    static unsigned long last_gauge_us = 0;
 
-        if (powerSaving) {
-            motorEnable(not targetReached.all);
-        }
+    static unsigned long motor_wait_us = (1e6 / motor_hz);
+    static unsigned long gauge_wait_us = (1e6 / gauge_hz);
+    static unsigned long publish_wait_us = (1e6 / publish_hz);
+    static unsigned long serial_wait_us = (1e6 / serial_hz);
+
+    // begin main body of function
+    unsigned long function_start_ms = millis();
+
+    while ((millis() - function_start_ms) < runtime_ms) {
 
         // first pulse the motors
-        if (operatingMode == 1) {
+        if ((micros() - last_motor_us) > motor_wait_us and not disabled) {
 
-            // move towards a given target
-            targetReached.x = motorX.targetPulse();
-            targetReached.y = motorY.targetPulse();
-            targetReached.z = motorZ.targetPulse();
+            unsigned long t1 = micros();
 
-        }
-        else if (operatingMode == 2) {
+            if (powerSaving) {
+                motorEnable(not targetReached.all);
+            }
 
-            // which motors do we need to home
-            bool x_homed = not m.inUse.x or targetReached.x;
-            bool y_homed = not m.inUse.y or targetReached.y;
-            bool z_homed = not m.inUse.z or targetReached.z;
+            if (operatingMode == 1) {
 
-            while ((millis() - loopStartMillis) < loopMillis) {
+                // move towards a given target
+                targetReached.x = motorX.targetPulse();
+                targetReached.y = motorY.targetPulse();
+                targetReached.z = motorZ.targetPulse();
+
+            }
+            else if (operatingMode == 2) {
+
+                // which motors do we need to home
+                bool x_homed = not m.inUse.x or targetReached.x;
+                bool y_homed = not m.inUse.y or targetReached.y;
+                bool z_homed = not m.inUse.z or targetReached.z;
+
                 // home pulse only if the motor is not yet homed
                 if (not x_homed) x_homed = motorX.homePulse();
                 if (not y_homed) y_homed = motorY.homePulse();
                 if (not z_homed) z_homed = motorZ.homePulse();
+
+                // update if we have reached our target
+                targetReached.x = x_homed;
+                targetReached.y = y_homed;
+                targetReached.z = z_homed;
+
             }
 
-            // update if we have reached our target
-            targetReached.x = x_homed;
-            targetReached.y = y_homed;
-            targetReached.z = z_homed;
+            // check if the target has been reached
+            if (targetReached.x and
+                targetReached.y and
+                targetReached.z) {
+                targetReached.all = true;
+                operatingMode = 1;
+            }
 
-        }
+            if (not targetReached.all) {
+                lastMotorTime = micros() - t1;
+            }
 
-        // check if the target has been reached
-        if (targetReached.x and
-            targetReached.y and
-            targetReached.z) {
-            targetReached.all = true;
-            operatingMode = 1;
+            last_motor_us = micros();
         }
 
         // now read the gauges
-        readGauges();
+        if ((micros() - last_gauge_us) > gauge_wait_us) {
+            unsigned long t1 = micros();
+            readGauges();
+            last_gauge_us = micros();
+            lastGaugeTime = micros() - t1;
+        }
 
         // check to publish output
-        publishOutput():
+        if ((micros() - last_publish_us) > publish_wait_us) {
+            unsigned long t1 = micros();
+            publishOutput();
+            last_publish_us = micros();
+            lastPublishTime = micros() - t1;
+        }
 
         // check incoming serial commands
-        checkSerial();
+        if ((micros() - last_serial_us) > serial_wait_us) {
+            unsigned long t1 = micros();
+            checkSerial();
+            last_serial_us = micros();
+            lastSerialTime = micros() - t1;
+        }
+
+        total_calls += 1;
+        runHz = ((float) total_calls * 1000) / (millis() - first_call_time);
+
+        if (run_once) break;
+    
     }
 }
 
@@ -886,127 +920,75 @@ void Gripper_v3::print()
 {
     /* print information to Serial terminal */
 
-    USBSERIAL.print(F("\n--- start print ---\n"));
+    iostream.startDebugMessage();
 
     // print motor step position
-    USBSERIAL.print(F("Current motor steps (x, y, z): ("));
-    USBSERIAL.print(motorX.getStep());
-    USBSERIAL.print(F(", "));
-    USBSERIAL.print(motorY.getStep());
-    USBSERIAL.print(F(", "));
-    USBSERIAL.print(motorZ.getStep());
-    USBSERIAL.print(F(")\n"));
+    DEBUGSERIAL.print(F("Current motor steps (x, y, z): ("));
+    DEBUGSERIAL.print(motorX.getStep());
+    DEBUGSERIAL.print(F(", "));
+    DEBUGSERIAL.print(motorY.getStep());
+    DEBUGSERIAL.print(F(", "));
+    DEBUGSERIAL.print(motorZ.getStep());
+    DEBUGSERIAL.print(F(")\n"));
 
     // print motor joint state
-    USBSERIAL.print(F("Joint positions (x, th, z): ("));
-    USBSERIAL.print(params.home.x + (params.mmPerStep.x * motorX.getStep()));
-    USBSERIAL.print(F(", "));
-    USBSERIAL.print(params.home.y + (params.mmPerStep.y * motorY.getStep()));
-    USBSERIAL.print(F(", "));
-    USBSERIAL.print(params.home.z + (params.mmPerStep.z * motorZ.getStep()));
-    USBSERIAL.print(F(")\n"));
+    DEBUGSERIAL.print(F("Joint positions (x, th, z): ("));
+    DEBUGSERIAL.print(params.home.x + (params.mmPerStep.x * motorX.getStep()));
+    DEBUGSERIAL.print(F(", "));
+    DEBUGSERIAL.print(params.home.y + (params.mmPerStep.y * motorY.getStep()));
+    DEBUGSERIAL.print(F(", "));
+    DEBUGSERIAL.print(params.home.z + (params.mmPerStep.z * motorZ.getStep()));
+    DEBUGSERIAL.print(F(")\n"));
 
     // print motor set speeds
-    USBSERIAL.print(F("Motor speed settings (x, y, z): ("));
-    USBSERIAL.print(setSpeed.x);
-    USBSERIAL.print(F(", "));
-    USBSERIAL.print(setSpeed.y);
-    USBSERIAL.print(F(", "));
-    USBSERIAL.print(setSpeed.z);
-    USBSERIAL.print(F(")\n"));
+    DEBUGSERIAL.print(F("Motor speed settings (x, y, z): ("));
+    DEBUGSERIAL.print(setSpeed.x);
+    DEBUGSERIAL.print(F(", "));
+    DEBUGSERIAL.print(setSpeed.y);
+    DEBUGSERIAL.print(F(", "));
+    DEBUGSERIAL.print(setSpeed.z);
+    DEBUGSERIAL.print(F(")\n"));
 
     // print last gauge readings
-    USBSERIAL.print(F("The last gauge readings were (g1, g2, g3, g4): ("));
-    USBSERIAL.print(iostream.outputMessage.gaugeOneReading);
-    USBSERIAL.print(F(", "));
-    USBSERIAL.print(iostream.outputMessage.gaugeTwoReading);
-    USBSERIAL.print(F(", "));
-    USBSERIAL.print(iostream.outputMessage.gaugeThreeReading);
-    USBSERIAL.print(F(", "));
-    USBSERIAL.print(iostream.outputMessage.gaugeFourReading);
-    USBSERIAL.print(F(")\n"));
+    DEBUGSERIAL.print(F("The last gauge readings were (g1, g2, g3, g4): ("));
+    DEBUGSERIAL.print(iostream.outputMessage.gaugeOneReading);
+    DEBUGSERIAL.print(F(", "));
+    DEBUGSERIAL.print(iostream.outputMessage.gaugeTwoReading);
+    DEBUGSERIAL.print(F(", "));
+    DEBUGSERIAL.print(iostream.outputMessage.gaugeThreeReading);
+    DEBUGSERIAL.print(F(", "));
+    DEBUGSERIAL.print(iostream.outputMessage.gaugeFourReading);
+    DEBUGSERIAL.print(F(")\n"));
 
     // print settings
-    USBSERIAL.print(F("is target reached "));
-    USBSERIAL.println(targetReached.all);
-    USBSERIAL.print(F("power saving "));
-    USBSERIAL.println(powerSaving);
-    USBSERIAL.print(F("disabled "));
-    USBSERIAL.println(disabled);
-    USBSERIAL.print(F("debug "));
-    USBSERIAL.println(debug);
-    USBSERIAL.print(F("timed action seconds "));
-    USBSERIAL.println(timedActionSecs);
+    DEBUGSERIAL.print(F("is target reached "));
+    DEBUGSERIAL.println(targetReached.all);
+    DEBUGSERIAL.print(F("power saving "));
+    DEBUGSERIAL.println(powerSaving);
+    DEBUGSERIAL.print(F("disabled "));
+    DEBUGSERIAL.println(disabled);
+    DEBUGSERIAL.print(F("debug "));
+    DEBUGSERIAL.println(debug);
+    DEBUGSERIAL.print(F("timed action seconds "));
+    DEBUGSERIAL.println(timedActionSecs);
+    DEBUGSERIAL.print(F("runHz "));
+    DEBUGSERIAL.println(runHz);
+    DEBUGSERIAL.print(F("motor_hz "));
+    DEBUGSERIAL.println(motor_hz);
+    DEBUGSERIAL.print(F("gauge_hz "));
+    DEBUGSERIAL.println(gauge_hz);
+    DEBUGSERIAL.print(F("serial_hz "));
+    DEBUGSERIAL.println(serial_hz);
+    DEBUGSERIAL.print(F("publish_hz "));
+    DEBUGSERIAL.println(publish_hz);
+    DEBUGSERIAL.print(F("lastMotorTime "));
+    DEBUGSERIAL.println(lastMotorTime);
+    DEBUGSERIAL.print(F("lastGaugeTime "));
+    DEBUGSERIAL.println(lastGaugeTime);
+    DEBUGSERIAL.print(F("lastPublishTime "));
+    DEBUGSERIAL.println(lastPublishTime);
+    DEBUGSERIAL.print(F("lastSerialTime "));
+    DEBUGSERIAL.println(lastSerialTime);
 
-    // // print memory use - TESTING
-    // USBSERIAL.print(F("free RAM is "));
-    // USBSERIAL.print(freeRam());
-
-    USBSERIAL.print("--- end ---\n\n");
+    iostream.endDebugMessage();
 }
-
-void Gripper_v3::bt_print()
-{
-    /* same as print() but sends to the BTSERIAL connection */
-
-    // publish tokens to indicate a message start
-    iostream.publishStartTokens();
-
-    // print motor step position
-    BTSERIAL.print(F("Current motor steps (x, y, z): ("));
-    BTSERIAL.print(motorX.getStep());
-    BTSERIAL.print(F(", "));
-    BTSERIAL.print(motorY.getStep());
-    BTSERIAL.print(F(", "));
-    BTSERIAL.print(motorZ.getStep());
-    BTSERIAL.print(F(")\n"));
-
-    // print motor joint state
-    BTSERIAL.print(F("Joint positions (x, th, z): ("));
-    BTSERIAL.print(params.home.x + (params.mmPerStep.x * motorX.getStep()));
-    BTSERIAL.print(F(", "));
-    BTSERIAL.print(params.home.y + (params.mmPerStep.y * motorY.getStep()));
-    BTSERIAL.print(F(", "));
-    BTSERIAL.print(params.home.z + (params.mmPerStep.z * motorZ.getStep()));
-    BTSERIAL.print(F(")\n"));
-
-    // print motor set speeds
-    BTSERIAL.print(F("Motor speed settings (x, y, z): ("));
-    BTSERIAL.print(setSpeed.x);
-    BTSERIAL.print(F(", "));
-    BTSERIAL.print(setSpeed.y);
-    BTSERIAL.print(F(", "));
-    BTSERIAL.print(setSpeed.z);
-    BTSERIAL.print(F(")\n"));
-
-    // print last gauge readings
-    BTSERIAL.print(F("The last gauge readings were (g1, g2, g3, g4): ("));
-    BTSERIAL.print(iostream.outputMessage.gaugeOneReading);
-    BTSERIAL.print(F(", "));
-    BTSERIAL.print(iostream.outputMessage.gaugeTwoReading);
-    BTSERIAL.print(F(", "));
-    BTSERIAL.print(iostream.outputMessage.gaugeThreeReading);
-    BTSERIAL.print(F(", "));
-    BTSERIAL.print(iostream.outputMessage.gaugeFourReading);
-    BTSERIAL.print(F(")\n"));
-
-    // print settings
-    BTSERIAL.print(F("is target reached "));
-    BTSERIAL.println(targetReached.all);
-    BTSERIAL.print(F("power saving "));
-    BTSERIAL.println(powerSaving);
-    BTSERIAL.print(F("disabled "));
-    BTSERIAL.println(disabled);
-    BTSERIAL.print(F("debug "));
-    BTSERIAL.println(debug);
-    BTSERIAL.print(F("timed action seconds "));
-    BTSERIAL.println(timedActionSecs);
-
-    // // print memory use - TESTING
-    // BTSERIAL.print(F("free RAM is "));
-    // BTSERIAL.print(freeRam());
-
-    // publish tokens to indicate the end of a message
-    iostream.publishEndTokens();
-}
-

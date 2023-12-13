@@ -22,23 +22,23 @@ private:
 
         // motor microstep modes, 1=fullstep, 2=halfstep, 4=quarterstep, ...etc... up to 16
         static struct Microstep {
-            static constexpr int x = 2;
-            static constexpr int y = 2;
-            static constexpr int z = 2;
+            static constexpr int x = 4;
+            static constexpr int y = 4;
+            static constexpr int z = 4;
         } microstep;
 
         // maximum speeds for each motor in rpm
         static struct MaxSpeed {
-            static constexpr float x = 400;
-            static constexpr float y = 400;
+            static constexpr float x = 350;
+            static constexpr float y = 350;
             static constexpr float z = 400;
         } maxSpeed;
 
         // homing speeds for each motor in rpm
         static struct HomingSpeed {
-            static constexpr float x = 450;
-            static constexpr float y = 450;
-            static constexpr float z = 450;
+            static constexpr float x = 250;
+            static constexpr float y = 250;
+            static constexpr float z = 400;
         } homingSpeed;
 
         // direction of rotation wrt to the limit switch
@@ -152,6 +152,7 @@ private:
     } control;
 
     // create motor objects
+public:
     StepperObj motorX { xstep, xdir };
     StepperObj motorY { ystep, ydir };
     StepperObj motorZ { zstep, zdir };
@@ -189,12 +190,29 @@ private:
     bool newReadGauge3;
     bool newReadGauge4;
 
+    // debug info
+    float runHz = 0.0;
+    unsigned long lastGaugeTime = 0;
+    unsigned long lastSerialTime = 0;
+    unsigned long lastPublishTime = 0;
+    unsigned long lastMotorTime = 0;
+
+    bool timedActionInProgress = false;
+    unsigned long timedActionStart_ms = 0;
+
     /* ----- Public variables ----- */
 public:
-    bool powerSaving;           // motors are turned off when not moving
-    bool disabled;              // motors are prevented from moving
-    bool debug;                 // print debug messages in Serial
-    float timedActionSecs;      // if doing timed commands, how long is the time interval
+
+    bool powerSaving = true;        // motors are turned off when not moving
+    bool disabled = false;          // motors are prevented from moving
+    bool debug = false;             // print debug messages in Serial
+    float timedActionSecs = 1.0;    // if doing timed commands, how long is the time interval
+    float timedActionPubEarly = 0.1;    // publish target reached early by x seconds if doing a timed action
+
+    float gauge_hz = 100;           // readings appear at 80Hz
+    float publish_hz = 10;          // publish as new gauge data arrives
+    float serial_hz = 20;           // check for new instructions
+    float motor_hz = 20000;         // check the motors much faster than they need to move
 
     /* ----- Public Functions ----- */
 public:
@@ -205,9 +223,10 @@ public:
     void sendErrorMessage(byte error_code);
     void publishOutput();
     void runMotors(const int loopMillis);
-    void smoothRun(int cycleTime_ms);
+    void run();
+    void run(unsigned long runtime_ms);
+    void setGripperTarget(float x, float y, float z);
     void print();
-    void bt_print();
 
     /* ----- Private Functions ----- */
 private:

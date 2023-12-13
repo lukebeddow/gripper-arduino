@@ -69,7 +69,7 @@ StepperObj::StepperObj(int stepPin, int dirPin)
 	_noRampPPS = 500;							// speed that the motor can reach without ramping
 	_changedDirection = false;		// initialise to false
 	_ramping = true;							// are we currently ramping up to speed
-	_rampReductionMicro = 50;			// rate at which we reduce time between pulses
+	_rampReductionMicro = 40;			// rate at which we reduce time between pulses
 	_rampWaitMicro = _waitMicro;	// time between steps for ramping
 
 	// determine the no ramp rpm, below which we will not ramp

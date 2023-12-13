@@ -7,10 +7,12 @@
   // bluetooth is connected to Serial2 for wireless coms
   #define BTSERIAL Serial2
   #define USBSERIAL Serial // for debugging
+	#define DEBUGSERIAL Serial
 #else
   // if wired then our 'bluetooth' is actually wired Serial
   #define BTSERIAL Serial
   #define USBSERIAL Serial2 // not useable
+	#define DEBUGSERIAL Serial
 #endif
 
 class GripperCommunication
@@ -42,6 +44,11 @@ public:
 	static constexpr byte debugOffByte = 117;
 	static constexpr byte printByte = 118;
 	static constexpr byte changeTimedActionByte = 119;
+	static constexpr byte changeTimedActionPubEarlyByte = 120;
+	static constexpr byte setGaugeHzByte = 121;
+	static constexpr byte setPublishHzByte = 122;
+	static constexpr byte setSerialHzByte = 123;
+	static constexpr byte setMotorHzByte = 124;
 
 	// information bytes and error codes
 	static constexpr byte messageReceivedByte = 200;
@@ -49,11 +56,12 @@ public:
 	static constexpr byte targetNotReachedByte = 202;
 	static constexpr byte targetReachedByte = 203;
 	static constexpr byte invalidCommandByte = 204;
+	static constexpr byte debugMessageByte = 205;
 
 	// message signature bytes
 	static constexpr byte specialByte = 253;
 	static constexpr byte startMarkerByte = 254;
-	static constexpr byte endMarkerByte = 255;
+	static constexpr byte endMarkerByte = 250; // do not use 255 as max value more likely than others
 
 	// how long is the message signature at each of the start and end
 	static constexpr byte startEndSize = 3;
@@ -62,6 +70,8 @@ public:
 	GripperCommunication();
 	bool readInput();
 	void publishOutput();
+	void startDebugMessage();
+	void endDebugMessage();
 
   // private, not recommended to use
   void publishEndTokens();
@@ -70,6 +80,9 @@ public:
 	/* Message structures for input and output */
 	struct InputMessage {
 		byte instructionByte;
+		byte pad1;
+		byte pad2;
+		byte pad3;
 		float x;
 		float y;
 		float z;
@@ -88,6 +101,8 @@ public:
 	struct OutputMessage {
 		byte informationByte;	 // used for reporting error codes etc
 		byte isTargetReached;  // message needs to be whole number of bytes
+		byte pad1;						 // giga aligns bytes in 4's, these are essential
+		byte pad2;						 // giga aligns bytes in 4's, these are essential
 		long gaugeOneReading;
 		long gaugeTwoReading;
 		long gaugeThreeReading;
@@ -95,14 +110,6 @@ public:
 		float motorX_mm;
 		float motorY_mm;
 		float motorZ_mm;
-		// long test1;
-		// long test2;
-		// long test3;
-		// long test4;
-		// long test5;
-		// long test6;
-		// long test7;
-		// long test8;
 	};
 	OutputMessage outputMessage;
 
@@ -118,10 +125,12 @@ public:
 private:
 
 	// variables
-	byte _dataReceivedCount = 0;
+	int _dataReceivedCount = 0;
 	byte _signatureCount = 0;
 	byte _inputBuffer[inputMessageSize];	
 	bool _inputInProgress = false;
 	bool _inputSuccess = false;
+	
+	bool debug_message_started = false;
 
 };

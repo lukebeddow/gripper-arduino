@@ -90,30 +90,33 @@ bool GripperCommunication::readInput()
 		inputUnion.byteArray[i] = _inputBuffer[i];
 	}
 
+	// constexpr bool debug_input_messages = false;
+	// if (debug_input_messages) {
+	// 	startDebugMessage();
+	// 	DEBUGSERIAL.write("Msg length ");
+	// 	DEBUGSERIAL.write(std::to_string(_dataReceivedCount).c_str());
+	// 	DEBUGSERIAL.write("\nRaw bytes: {");
+	// 	for (int i = 0; i < _dataReceivedCount - 1; i++) {
+	// 		DEBUGSERIAL.write(_inputBuffer[i]);
+	// 		DEBUGSERIAL.write(',');
+	// 	}
+	// 	DEBUGSERIAL.write(_inputBuffer[_dataReceivedCount - 1]);
+	// 	DEBUGSERIAL.write('}');
+	// 	endDebugMessage();
+	// }
+
 	/* for single byte messages, _dataReceivedCount is 1,
 		 for x,y,z messages, _dataReceivedCount is 13
 		 It currently works without checking for this */
 
 	// extract the raw data, it is fine if we get garbage for x,y,z
 	inputMessage.instructionByte = inputUnion.structure.instructionByte;
-
-  if (_dataReceivedCount == 13) {
-    inputMessage.x = inputUnion.structure.x;
-    inputMessage.y = inputUnion.structure.y;
-    inputMessage.z = inputUnion.structure.z;
-  }
-  else {
-    inputMessage.x = 4.123;
-    inputMessage.y = 4.123;
-    inputMessage.z = 4.123;
-  }
-
-  // TESTING: delete later
-  // if (inputMessage.instructionByte == setSpeedByte) {
-  //   inputMessage.x = 144.123;
-  //   inputMessage.y = 144.123;
-  //   inputMessage.z = 144.123;
-  // }
+	inputMessage.pad1 = inputUnion.structure.pad1;
+	inputMessage.pad2 = inputUnion.structure.pad2;
+	inputMessage.pad3 = inputUnion.structure.pad3;
+	inputMessage.x = inputUnion.structure.x;
+	inputMessage.y = inputUnion.structure.y;
+	inputMessage.z = inputUnion.structure.z;
 
 	// now reset all variables before a new message comes in
 	_inputSuccess == false;
@@ -136,13 +139,6 @@ void GripperCommunication::publishStartTokens()
 void GripperCommunication::publishEndTokens()
 {
   /* publish the message end tokens */
-
-  // temporary fix, write a 0 before end markers
-	/* the problem is actually that the gripper internal tracking of x/y/z goes
-	to infinity and nan and this sets the last bit to 255 hence it interfered
-	with the end marker bytes. A system of start/end markers which went for example
-	253,254,255 would be immune from this problem */
-	BTSERIAL.write((byte) 0);
 
 	// finish the message with the end marker
 	for (int i = 0; i < startEndSize; i++) {
@@ -172,4 +168,27 @@ void GripperCommunication::publishOutput()
 	}
 
   publishEndTokens();
+}
+
+void GripperCommunication::startDebugMessage()
+{
+	/* begin a debug message */
+
+	if (debug_message_started) return;
+
+	publishStartTokens();
+	DEBUGSERIAL.write(debugMessageByte);
+
+	debug_message_started = true;
+}
+
+void GripperCommunication::endDebugMessage()
+{
+	/* finish a debug message */
+
+	if (not debug_message_started) return;
+
+	publishEndTokens();
+
+	debug_message_started = false;
 }
