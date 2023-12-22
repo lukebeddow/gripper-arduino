@@ -457,25 +457,33 @@ void Gripper_v3::readGauge(const int gauge_num)
     switch (gauge_num) {
     case 1:
         if (gauge1.is_ready()) {
-            iostream.outputMessage.gaugeOneReading = gauge1.read();
+            long new_reading = gauge1.read();
+            if (new_reading != 0) iostream.outputMessage.gaugeOneReading = new_reading;
+            // iostream.outputMessage.gaugeOneReading = gauge1.read();
             newReadGauge1 = true;
         }
         break;
     case 2:
         if (gauge2.is_ready()) {
-            iostream.outputMessage.gaugeTwoReading = gauge2.read();
+            long new_reading = gauge2.read();
+            if (new_reading != 0) iostream.outputMessage.gaugeTwoReading = new_reading;
+            // iostream.outputMessage.gaugeTwoReading = gauge2.read();
             newReadGauge2 = true;
         }
         break;
     case 3:
         if (gauge3.is_ready()) {
-            iostream.outputMessage.gaugeThreeReading = gauge3.read();
+            long new_reading = gauge3.read();
+            if (new_reading != 0) iostream.outputMessage.gaugeThreeReading = new_reading;
+            // iostream.outputMessage.gaugeThreeReading = gauge3.read();
             newReadGauge3 = true;
         }
         break;
     case 4:
         if (gauge4.is_ready()) {
-            iostream.outputMessage.gaugeFourReading = gauge4.read();
+            long new_reading = gauge4.read();
+            if (new_reading != 0) iostream.outputMessage.gaugeFourReading = new_reading;
+            // iostream.outputMessage.gaugeFourReading = gauge4.read();
             newReadGauge4 = true;
         }
         break;
