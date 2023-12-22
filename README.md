@@ -10,51 +10,43 @@ The arudino pins for I/O are defined in ```Gripper_v2/pin_definitions.h```. The 
 To use the gripper class, upload the following sketch to the arudino:
 
 ```c++
-#include <Gripper_v2.h>
+#include <Gripper_v3.h>
 
-/* the following arduino libraries are required for Gripper_v2.h:
+/* the following arduino libraries are required for Gripper_v3.h:
     #include <GripperCommunication.h>
     #include <StepperObj.h>
     #include <HX711.h> // https://www.arduino.cc/reference/en/libraries/hx711-arduino-library/
 */
 
-Gripper mygripper;
+Gripper_v3 mygripper;
 
 void setup() {
   // put your setup code here, to run once:
 
+  // configure settings
+  mygripper.powerSaving = true;     // motors turn off when stationary
+  mygripper.disabled = false;       // false by default, true prevents motion
+  mygripper.timedActionSecs = 1.0;  // time interval for timed actions
+  mygripper.debug = true;           // print debug messages
+
+  // set frequency of actions
+  mygripper.gauge_hz = 100;         // readings arrive at 80Hz
+  mygripper.publish_hz = 20;        // publish readings and current state
+  mygripper.serial_hz = 20;         // check for new instructions
+  mygripper.motor_hz = 100000;      // check motor pulses in excess of max rpm
+
   // non-interruptible homing, required to zero motor step counts
   mygripper.homingSequence();
-  
-  mygripper.powerSaving = true; // motors turn off when stationary
-  mygripper.disabled = false;   // false by default, true prevents motion
 
-  // optional usb connection, USBSERIAL is defined as Serial in GripperCommunication.h
-  USBSERIAL.begin(9600);
-
-  // required bluetooth connection, BTSERIAL is defined as Serial2 in GripperCommunication.h
+  // main serial connection, either wired or bluetooth (see GripperCommunication.h)
   BTSERIAL.begin(115200);
-
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
 
-  // run the motors and communications for cycles of 20 milliseconds
-  mygripper.smoothRun(20);
-  
+  // run the motors and input/output
+  mygripper.run();
+
 }
-```
-Rather than use smoothRun, the gripper can also be run using:
-
-```c++
-
-  // check for commands and gauge data
-  mygripper.checkInputs();
-  
-  // publish a message if a new one is ready
-  mygripper.publishOutput();
-  
-  // run the motors for a cycle of 20ms
-  mygripper.runMotors(20);
 ```
