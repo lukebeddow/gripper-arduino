@@ -49,6 +49,7 @@ public:
 	static constexpr byte setPublishHzByte = 122;
 	static constexpr byte setSerialHzByte = 123;
 	static constexpr byte setMotorHzByte = 124;
+	static constexpr byte homeBlockingByte = 125;
 
 	// information bytes and error codes
 	static constexpr byte messageReceivedByte = 200;

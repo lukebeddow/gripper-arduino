@@ -119,7 +119,7 @@ bool GripperCommunication::readInput()
 	inputMessage.z = inputUnion.structure.z;
 
 	// now reset all variables before a new message comes in
-	_inputSuccess == false;
+	_inputSuccess = false;
 	_dataReceivedCount = 0;
 	_signatureCount = 0;
 
@@ -130,7 +130,6 @@ void GripperCommunication::publishStartTokens()
 {
   /* publish the message start tokens */
 
-  int j = 0;
 	for (int i = 0; i < startEndSize; i++) {
 		BTSERIAL.write(startMarkerByte);
 	}

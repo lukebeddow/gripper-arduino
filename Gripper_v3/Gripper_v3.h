@@ -29,15 +29,15 @@ private:
 
         // maximum speeds for each motor in rpm
         static struct MaxSpeed {
-            static constexpr float x = 350;
-            static constexpr float y = 350;
+            static constexpr float x = 200;
+            static constexpr float y = 200;
             static constexpr float z = 400;
         } maxSpeed;
 
         // homing speeds for each motor in rpm
         static struct HomingSpeed {
-            static constexpr float x = 250;
-            static constexpr float y = 250;
+            static constexpr float x = 350;
+            static constexpr float y = 350;
             static constexpr float z = 400;
         } homingSpeed;
 
@@ -50,16 +50,16 @@ private:
 
         // how many revolutions from the limit switch is home
         static struct HomeRevs {
-            static constexpr float x = 1.0;
-            static constexpr float y = 1.0;
+            static constexpr float x = 0.5; // 1.0
+            static constexpr float y = 0.5; // 1.0
             static constexpr float z = 1.0;
         } homeRevs;
 
         // how many revolutions from the limit switch is the limit
         static struct LimitRevs {
-            static constexpr float x = 32.0; // hard limit at 32.5 (13000 steps)
-            static constexpr float y = 32.0;
-            static constexpr float z = 34.0;
+            static constexpr float x = 20.0; //22.0; // with microstep 4, 46mm is 17600 steps, hence 22 revs
+            static constexpr float y = 21.0; //22.0;
+            static constexpr float z = 34.0; // with microstep 4, 165mm is 28000 steps, hence 35 revs
         } limitRevs;
 
         // which motors are currently in use
@@ -192,6 +192,10 @@ public:
 
     // debug info
     float runHz = 0.0;
+    float actualGaugeHz = 0.0;
+    float actualPublishHz = 0.0;
+    float actualSerialHz = 0.0;
+    float actualMotorHz = 0.0;
     unsigned long lastGaugeTime = 0;
     unsigned long lastSerialTime = 0;
     unsigned long lastPublishTime = 0;
@@ -199,6 +203,12 @@ public:
 
     bool timedActionInProgress = false;
     unsigned long timedActionStart_ms = 0;
+
+    // action rates
+    unsigned long motor_wait_us = 0;
+    unsigned long gauge_wait_us = 0;
+    unsigned long publish_wait_us = 0;
+    unsigned long serial_wait_us = 0;
 
     /* ----- Public variables ----- */
 public:
@@ -227,6 +237,7 @@ public:
     void run(unsigned long runtime_ms);
     void setGripperTarget(float x, float y, float z);
     void print();
+    void update_rates();
 
     /* ----- Private Functions ----- */
 private:

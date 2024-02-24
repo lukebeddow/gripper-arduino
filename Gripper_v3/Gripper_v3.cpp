@@ -210,10 +210,19 @@ void Gripper_v3::homingSequence()
         return;
     }
 
+    // set gripper parameters for homing mode
+    targetReached.x = false;
+    targetReached.y = false;
+    targetReached.z = false;
+    targetReached.all = false;
+
     // which motors do we need to home
     bool x_homed = not m.inUse.x;
     bool y_homed = not m.inUse.y;
     bool z_homed = not m.inUse.z;
+
+    // ensure the motors are now enabled
+    motorEnable(true);
 
     // loop until all motors are homed
     while (not (x_homed and y_homed and z_homed)) {
@@ -222,6 +231,13 @@ void Gripper_v3::homingSequence()
         if (not z_homed) z_homed = motorZ.homePulse();
     }
 
+    // in case a previous homing sequence was interrupted
+    motorX.wipeHomingFlag();
+    motorY.wipeHomingFlag();
+    motorZ.wipeHomingFlag();
+
+    // now return to regular operation
+    operatingMode = 1;
     targetReached.all = true;
     targetReached.x = x_homed;
     targetReached.y = y_homed;
@@ -374,15 +390,41 @@ void Gripper_v3::setMessageTarget()
     float revs_y = (params.home.y + y_mm * params.direction.y) / params.mmPerRev.y;
     float revs_z = (params.home.z + z_mm * params.direction.z) / params.mmPerRev.z;
 
-    // check the target revolutions are not exceeding our limits
-    if (revs_x < 0 or revs_x > m.limitRevs.x or
-        revs_y < 0 or revs_y > m.limitRevs.y or
-        revs_z < 0 or revs_z > m.limitRevs.z) {
-        if (debug) {
-            DEBUGSERIAL.println("Revs limit exeeded, abort");
-            iostream.endDebugMessage();
-        }
-        return;
+    // // check the target revolutions are not exceeding our limits
+    // if (revs_x < 0 or revs_x > m.limitRevs.x or
+    //     revs_y < 0 or revs_y > m.limitRevs.y or
+    //     revs_z < 0 or revs_z > m.limitRevs.z) {
+    //     if (debug) {
+    //         DEBUGSERIAL.println("Revs limit exeeded, abort");
+    //         iostream.endDebugMessage();
+    //     }
+    //     return;
+    // }
+
+    // cap the revolutions at our limits
+    if (revs_x < 0) {
+        revs_x = 0;
+        if (debug) DEBUGSERIAL.println("revs_x prevented being < 0");
+    }
+    if (revs_x > m.limitRevs.x) {
+        revs_x = m.limitRevs.x;
+        if (debug) DEBUGSERIAL.println("revs_x prevented being > max");
+    }
+    if (revs_y < 0) {
+        revs_y = 0;
+        if (debug) DEBUGSERIAL.println("revs_y prevented being < 0");
+    }
+    if (revs_y < 0) {
+        revs_y = m.limitRevs.y;
+        if (debug) DEBUGSERIAL.println("revs_y prevented being > max");
+    }
+    if (revs_z < 0) {
+        revs_z = 0;
+        if (debug) DEBUGSERIAL.println("revs_z prevented being < 0");
+    }
+    if (revs_z < 0) {
+        revs_z = m.limitRevs.z;
+        if (debug) DEBUGSERIAL.println("revs_z prevented being > max");
     }
     
     // convert target revolutions to target steps
@@ -390,29 +432,43 @@ void Gripper_v3::setMessageTarget()
     control.stepTarget.y = revs_y * m.stepsPerRev * m.microstep.y;
     control.stepTarget.z = revs_z * m.stepsPerRev * m.microstep.z;
 
+    if (debug) {
+
+        DEBUGSERIAL.print(F("x step current is ")); DEBUGSERIAL.println(motorX.getStep());
+        DEBUGSERIAL.print(F("y step current is ")); DEBUGSERIAL.println(motorY.getStep());
+        DEBUGSERIAL.print(F("z step current is ")); DEBUGSERIAL.println(motorZ.getStep());
+        DEBUGSERIAL.print(F("x step target is ")); DEBUGSERIAL.println(control.stepTarget.x);
+        DEBUGSERIAL.print(F("y step target is ")); DEBUGSERIAL.println(control.stepTarget.y);
+        DEBUGSERIAL.print(F("z step target is ")); DEBUGSERIAL.println(control.stepTarget.z);
+    }
+
 // GOTO_after_step_set:
 
-    // if we are performing a timed action, set speeds to match
-    if (iostream.inputMessage.instructionByte == iostream.timedCommandByte_m) {
+    // // if we are performing a timed action, set speeds to match
+    // if (iostream.inputMessage.instructionByte == iostream.timedCommandByte_m) {
 
-        setSpeed.x = (revs_x) / (timedActionSecs / 60.0);
-        setSpeed.y = (revs_y) / (timedActionSecs / 60.0);
-        setSpeed.z = (revs_z) / (timedActionSecs / 60.0);
+    //     setSpeed.x = (revs_x) / (timedActionSecs / 60.0);
+    //     setSpeed.y = (revs_y) / (timedActionSecs / 60.0);
+    //     setSpeed.z = (revs_z) / (timedActionSecs / 60.0);
 
-        // check we don't exceed our speed limits
-        if (setSpeed.x > m.maxSpeed.x) setSpeed.x = m.maxSpeed.x;
-        if (setSpeed.y > m.maxSpeed.y) setSpeed.y = m.maxSpeed.y;
-        if (setSpeed.z > m.maxSpeed.z) setSpeed.z = m.maxSpeed.z;
+    //     // check we don't exceed our speed limits
+    //     if (setSpeed.x > m.maxSpeed.x) setSpeed.x = m.maxSpeed.x;
+    //     if (setSpeed.y > m.maxSpeed.y) setSpeed.y = m.maxSpeed.y;
+    //     if (setSpeed.z > m.maxSpeed.z) setSpeed.z = m.maxSpeed.z;
 
-        if (debug) {
-            DEBUGSERIAL.print("x speed ");
-            DEBUGSERIAL.println(setSpeed.x);
-            DEBUGSERIAL.print("y speed ");
-            DEBUGSERIAL.println(setSpeed.y);
-            DEBUGSERIAL.print("z speed ");
-            DEBUGSERIAL.println(setSpeed.z);
-        }
-    }
+    //     if (debug) {
+    //         DEBUGSERIAL.print("x speed ");
+    //         DEBUGSERIAL.println(setSpeed.x);
+    //         DEBUGSERIAL.print("y speed ");
+    //         DEBUGSERIAL.println(setSpeed.y);
+    //         DEBUGSERIAL.print("z speed ");
+    //         DEBUGSERIAL.println(setSpeed.z);
+    //     }
+    // }
+
+    setSpeed.x = m.maxSpeed.x;
+    setSpeed.y = m.maxSpeed.y;
+    setSpeed.z = m.maxSpeed.z;
 
     // set motor speeds
     motorX.setRPM(setSpeed.x);
@@ -526,6 +582,21 @@ bool Gripper_v3::checkSerial()
                 case iostream.homeByte:
                     setHomeTarget();
                     break;
+                case iostream.homeBlockingByte:
+                    // homes immediately, this function is completely blocking
+                    // no messages can be sent/received during this call
+                    if (debug) {
+                        iostream.startDebugMessage();
+                        DEBUGSERIAL.println("Starting an uninterruptible homing sequence");
+                        iostream.endDebugMessage();
+                    }
+                    homingSequence();
+                    iostream.startDebugMessage();
+                    if (debug) {
+                        DEBUGSERIAL.println("Homing completed");
+                        iostream.endDebugMessage();
+                    }
+                    break;
                 case iostream.powerSavingOnByte:
                     if (debug) { 
                         DEBUGSERIAL.print(F("Power saving set to true\n")); 
@@ -597,6 +668,7 @@ bool Gripper_v3::checkSerial()
                         DEBUGSERIAL.print(F("Gauge hz set to "));
                         DEBUGSERIAL.println(gauge_hz);
                     }
+                    update_rates();
                     break;
                 case iostream.setPublishHzByte:
                     publish_hz = iostream.inputMessage.x;
@@ -606,6 +678,7 @@ bool Gripper_v3::checkSerial()
                         DEBUGSERIAL.print(F("Publish hz set to "));
                         DEBUGSERIAL.println(publish_hz);
                     }
+                    update_rates();
                     break;
                 case iostream.setSerialHzByte:
                     serial_hz = iostream.inputMessage.x;
@@ -615,6 +688,7 @@ bool Gripper_v3::checkSerial()
                         DEBUGSERIAL.print(F("Serial hz set to "));
                         DEBUGSERIAL.println(serial_hz);
                     }
+                    update_rates();
                     break;
                 case iostream.setMotorHzByte:
                     motor_hz = iostream.inputMessage.x;
@@ -624,6 +698,7 @@ bool Gripper_v3::checkSerial()
                         DEBUGSERIAL.print(F("Motor hz set to "));
                         DEBUGSERIAL.println(motor_hz);
                     }
+                    update_rates();
                     break;
                 }
             }
@@ -783,11 +858,11 @@ void Gripper_v3::publishOutput()
             if (millis() - (timedActionSecs - timedActionPubEarly) > timedActionStart_ms) {
                 iostream.outputMessage.isTargetReached = true;
             }
-            if (debug) {
-                iostream.startDebugMessage();
-                DEBUGSERIAL.println("Timed action early publish target reached");
-                iostream.endDebugMessage();
-            }
+            // if (debug) {
+            //     iostream.startDebugMessage();
+            //     DEBUGSERIAL.println("Timed action early publish target reached");
+            //     iostream.endDebugMessage();
+            // }
         }
 
         // publish the message on Serial2 (hardcoded)
@@ -799,6 +874,16 @@ void Gripper_v3::publishOutput()
         newReadGauge3 = false;
         newReadGauge4 = false;
     }
+}
+
+void Gripper_v3::update_rates()
+{
+    /* update wait times for key actions */
+
+    motor_wait_us = (1e6 / motor_hz);
+    gauge_wait_us = (1e6 / gauge_hz);
+    publish_wait_us = (1e6 / publish_hz);
+    serial_wait_us = (1e6 / serial_hz);
 }
 
 void Gripper_v3::run()
@@ -824,6 +909,10 @@ void Gripper_v3::run(unsigned long runtime_ms)
 
     // persist information between function calls
     static unsigned long total_calls = 0;
+    static unsigned long gauge_calls = 0;
+    static unsigned long publish_calls = 0;
+    static unsigned long motor_calls = 0;
+    static unsigned long serial_calls = 0;
     static unsigned long first_call_time = millis();
 
     static unsigned long last_publish_us = 0;
@@ -831,10 +920,18 @@ void Gripper_v3::run(unsigned long runtime_ms)
     static unsigned long last_motor_us = 0;
     static unsigned long last_gauge_us = 0;
 
-    static unsigned long motor_wait_us = (1e6 / motor_hz);
-    static unsigned long gauge_wait_us = (1e6 / gauge_hz);
-    static unsigned long publish_wait_us = (1e6 / publish_hz);
-    static unsigned long serial_wait_us = (1e6 / serial_hz);
+    // // calculate rate of actions for inside this function
+    // unsigned long motor_wait_us = (1e6 / motor_hz);
+    // unsigned long gauge_wait_us = (1e6 / gauge_hz);
+    // unsigned long publish_wait_us = (1e6 / publish_hz);
+    // unsigned long serial_wait_us = (1e6 / serial_hz);
+
+    // calculate the rate of actions inside this function
+    static bool first_call = true;
+    if (first_call) {
+        update_rates();
+        first_call = false;
+    }
 
     // begin main body of function
     unsigned long function_start_ms = millis();
@@ -890,6 +987,7 @@ void Gripper_v3::run(unsigned long runtime_ms)
             }
 
             last_motor_us = micros();
+            motor_calls += 1;
         }
 
         // now read the gauges
@@ -898,6 +996,7 @@ void Gripper_v3::run(unsigned long runtime_ms)
             readGauges();
             last_gauge_us = micros();
             lastGaugeTime = micros() - t1;
+            gauge_calls += 1;
         }
 
         // check to publish output
@@ -906,6 +1005,7 @@ void Gripper_v3::run(unsigned long runtime_ms)
             publishOutput();
             last_publish_us = micros();
             lastPublishTime = micros() - t1;
+            publish_calls += 1;
         }
 
         // check incoming serial commands
@@ -914,10 +1014,15 @@ void Gripper_v3::run(unsigned long runtime_ms)
             checkSerial();
             last_serial_us = micros();
             lastSerialTime = micros() - t1;
+            serial_calls += 1;
         }
 
         total_calls += 1;
         runHz = ((float) total_calls * 1000) / (millis() - first_call_time);
+        actualGaugeHz = ((float) gauge_calls * 1000) / (millis() - first_call_time);
+        actualPublishHz = ((float) publish_calls * 1000) / (millis() - first_call_time);
+        actualSerialHz = ((float) serial_calls * 1000) / (millis() - first_call_time);
+        actualMotorHz = ((float) motor_calls * 1000) / (millis() - first_call_time);
 
         if (run_once) break;
     
@@ -982,13 +1087,21 @@ void Gripper_v3::print()
     DEBUGSERIAL.print(F("runHz "));
     DEBUGSERIAL.println(runHz);
     DEBUGSERIAL.print(F("motor_hz "));
-    DEBUGSERIAL.println(motor_hz);
+    DEBUGSERIAL.print(motor_hz);
+    DEBUGSERIAL.print(F(", actual measured hz "));
+    DEBUGSERIAL.println(actualMotorHz);
     DEBUGSERIAL.print(F("gauge_hz "));
-    DEBUGSERIAL.println(gauge_hz);
+    DEBUGSERIAL.print(gauge_hz);
+    DEBUGSERIAL.print(F(", actual measured hz "));
+    DEBUGSERIAL.println(actualGaugeHz);
     DEBUGSERIAL.print(F("serial_hz "));
-    DEBUGSERIAL.println(serial_hz);
+    DEBUGSERIAL.print(serial_hz);
+    DEBUGSERIAL.print(F(", actual measured hz "));
+    DEBUGSERIAL.println(actualSerialHz);
     DEBUGSERIAL.print(F("publish_hz "));
-    DEBUGSERIAL.println(publish_hz);
+    DEBUGSERIAL.print(publish_hz);
+    DEBUGSERIAL.print(F(", actual measured hz "));
+    DEBUGSERIAL.println(actualPublishHz);
     DEBUGSERIAL.print(F("lastMotorTime "));
     DEBUGSERIAL.println(lastMotorTime);
     DEBUGSERIAL.print(F("lastGaugeTime "));
