@@ -466,9 +466,9 @@ void Gripper_v3::setMessageTarget()
     //     }
     // }
 
-    setSpeed.x = m.maxSpeed.x;
-    setSpeed.y = m.maxSpeed.y;
-    setSpeed.z = m.maxSpeed.z;
+    // setSpeed.x = m.maxSpeed.x;
+    // setSpeed.y = m.maxSpeed.y;
+    // setSpeed.z = m.maxSpeed.z;
 
     // set motor speeds
     motorX.setRPM(setSpeed.x);

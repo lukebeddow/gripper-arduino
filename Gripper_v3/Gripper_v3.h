@@ -29,8 +29,8 @@ private:
 
         // maximum speeds for each motor in rpm
         static struct MaxSpeed {
-            static constexpr float x = 200;
-            static constexpr float y = 200;
+            static constexpr float x = 350;
+            static constexpr float y = 350;
             static constexpr float z = 400;
         } maxSpeed;
 
@@ -50,8 +50,8 @@ private:
 
         // how many revolutions from the limit switch is home
         static struct HomeRevs {
-            static constexpr float x = 0.5; // 1.0
-            static constexpr float y = 0.5; // 1.0
+            static constexpr float x = 1.0;
+            static constexpr float y = 1.0;
             static constexpr float z = 1.0;
         } homeRevs;
 
