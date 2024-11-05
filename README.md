@@ -1,11 +1,11 @@
 # luke-gripper-arduino
 
 Arduino libraries I have written to run the gripper.
-* ```Gripper_v2``` contains the main gripper class and functions used to control it.
+* ```Gripper_v3``` contains the main and most updated gripper class and functions used to control it.
 * ```GripperCommunication``` defines bluetooth message settings, byte definitions, and message contents.
 * ```StepperObj``` defines a stepper motor class to control at low level.
 
-The arudino pins for I/O are defined in ```Gripper_v2/pin_definitions.h```. The Gripper_v2.h class also requires installing the HX711_Arudino_Library: https://www.arduino.cc/reference/en/libraries/hx711-arduino-library/
+The arudino pins for I/O are defined in ```Gripper_v3/pin_definitions.h```. The Gripper_v3.h class also requires installing the HX711_Arudino_Library: https://www.arduino.cc/reference/en/libraries/hx711-arduino-library/
 
 To use the gripper class, upload the following sketch to the arudino:
 
